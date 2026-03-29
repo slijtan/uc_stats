@@ -1,0 +1,200 @@
+decisions:
+  - id: D-define-001
+    phase: define
+    agent: product-manager
+    context: "Primary user persona for the product — determines visualization approach, complexity level, and information hierarchy"
+    selected_option: 0
+    selected_label: "High school students and parents researching UC admissions"
+    options_snapshot:
+      - "High school students and parents researching UC admissions"
+      - "Educators and school counselors comparing school performance"
+      - "Journalists investigating equity in admissions"
+      - "General public with casual interest"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-002
+    phase: define
+    agent: product-manager
+    context: "Secondary user persona — informs additional features and data presentation options beyond the primary audience"
+    selected_option: 1
+    selected_label: "Educators and counselors comparing school performance"
+    options_snapshot:
+      - "High school students and parents researching UC admissions"
+      - "Educators and counselors comparing school performance"
+      - "Journalists investigating equity in admissions"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-003
+    phase: define
+    agent: product-manager
+    context: "Year range for initial release — balances data volume and relevance. Full historical range (1994-present) would increase data size and complexity."
+    selected_option: 1
+    selected_label: "Last 10 years (approximately 2015-2025)"
+    options_snapshot:
+      - "Full historical range (1994-present, ~30 years)"
+      - "Last 10 years (approximately 2015-2025)"
+      - "Last 5 years (approximately 2020-2025)"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-004
+    phase: define
+    agent: product-manager
+    context: "Primary comparison axis — defines the core differentiator of the product. Other dimensions (ethnicity, campus, GPA) are secondary."
+    selected_option: 0
+    selected_label: "Public vs. private high school acceptance rates"
+    options_snapshot:
+      - "Public vs. private high school acceptance rates"
+      - "All dimensions equally prominent (ethnicity, campus, GPA, school type)"
+      - "Campus-centric comparison"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-005
+    phase: define
+    agent: product-manager
+    context: "Map view requirement — geographic visualization adds significant complexity (mapping library, geocoding, performance). Table and chart views cover the core use cases."
+    selected_option: 1
+    selected_label: "Not required for MVP"
+    options_snapshot:
+      - "Map view required for MVP"
+      - "Not required for MVP"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-006
+    phase: define
+    agent: product-manager
+    context: "Architecture approach — static site with pre-processed JSON eliminates server deployment and hosting costs. Sufficient for the data volume in scope."
+    selected_option: 0
+    selected_label: "Static site with pre-processed JSON data"
+    options_snapshot:
+      - "Static site with pre-processed JSON data"
+      - "Server-rendered with dynamic queries"
+      - "Static site with SQLite in-browser"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-007
+    phase: define
+    agent: product-manager
+    context: "Charter school classification — the UC Information Center classifies charter schools as CA Public. Following this classification avoids confusion and aligns with the authoritative data source."
+    selected_option: 0
+    selected_label: "Follow UC classification (charter schools counted as public)"
+    options_snapshot:
+      - "Follow UC classification (charter schools counted as public)"
+      - "Separate charter schools into their own category"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-008
+    phase: define
+    agent: product-manager
+    context: "Data update strategy — automated extraction from Tableau is fragile and complex. Manual periodic updates with included scripts are appropriate for MVP."
+    selected_option: 0
+    selected_label: "Manual periodic updates with included scripts"
+    options_snapshot:
+      - "Manual periodic updates with included scripts"
+      - "Automated scheduled extraction pipeline"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-009
+    phase: define
+    agent: product-manager
+    context: "Data extraction tooling — should the project include scripts for extracting and processing UC Tableau data, or assume pre-processed data as input?"
+    selected_option: 0
+    selected_label: "Include extraction/processing scripts as part of the project"
+    options_snapshot:
+      - "Include extraction/processing scripts as part of the project"
+      - "Assume pre-processed data as input (separate project)"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-define-010
+    phase: define
+    agent: product-manager
+    context: "Ethnicity and gender breakdowns — while available in the UC data, these dimensions add significant UI complexity and sensitivity. Deferring to a future release keeps MVP focused on the core public/private differentiator."
+    selected_option: 1
+    selected_label: "Deferred to future release"
+    options_snapshot:
+      - "Include ethnicity and gender filters in MVP"
+      - "Deferred to future release"
+    custom_response: null
+    timestamp: 2026-03-28T00:15:00Z
+
+  - id: D-design-001
+    phase: design
+    agent: architect
+    context: "Frontend framework choice — the PRD requires substantial interactivity (search, filtering, chart/table toggling, side-by-side comparisons). The config specifies TypeScript + npm but no framework."
+    selected_option: 3
+    selected_label: "React with Vite"
+    options_snapshot:
+      - "Vanilla TypeScript (no framework)"
+      - "Astro with island architecture"
+      - "Svelte with SvelteKit"
+      - "React with Vite"
+    custom_response: null
+    rationale: "React provides the largest ecosystem and best visualization library support (Recharts is React-native). Vite provides fast builds and HMR. The interactivity requirements make a framework worthwhile, and React is the most widely understood option. Bundle size difference vs. Svelte is negligible compared to data payload."
+    timestamp: 2026-03-28T01:00:00Z
+
+  - id: D-design-002
+    phase: design
+    agent: architect
+    context: "Visualization library — the PRD requires bar charts (R17), line charts (R17), distribution plots (R13), with accessibility requirements (R22, R24). Must work well with the chosen React framework."
+    selected_option: 0
+    selected_label: "Recharts"
+    options_snapshot:
+      - "Recharts"
+      - "Apache ECharts"
+      - "Chart.js"
+      - "D3.js"
+      - "Highcharts"
+    custom_response: null
+    rationale: "Recharts is React-native (composable components), SVG-based (better accessibility than Canvas), covers all needed chart types (bar, line, scatter, composed), has built-in TypeScript types, ~45 KB gzipped with tree-shaking, and has been stable for ~10 years. Distribution plots (R13) can be implemented as histograms or dot plots using BarChart/ScatterChart."
+    timestamp: 2026-03-28T01:00:00Z
+
+  - id: D-design-003
+    phase: design
+    agent: architect
+    context: "Data format and chunking — estimated ~9 MB raw JSON for full dataset (~2-3 MB gzipped). Need to balance initial load time (NFR1: 3s FCP) against implementation complexity. 5 MB gzipped budget (NFR2)."
+    selected_option: 1
+    selected_label: "Multiple JSON files, partitioned by campus"
+    options_snapshot:
+      - "Single JSON file (~2-3 MB gzipped)"
+      - "Multiple JSON files, partitioned by campus (~200-300 KB each)"
+      - "SQLite via sql.js (~1 MB WASM overhead + data)"
+    custom_response: null
+    rationale: "Campus partitioning yields ~200-300 KB per file gzipped. Initial load needs only school index (~100 KB) + summary (~10 KB) + systemwide campus (~300 KB) = ~400 KB total. Individual campus files lazy-load on demand. Total ~3.1 MB gzipped, well within budget. Simpler than SQLite, faster initial load than single file."
+    timestamp: 2026-03-28T01:00:00Z
+
+  - id: D-design-004
+    phase: design
+    agent: architect
+    context: "Fuzzy matching approach — two distinct needs: (1) pipeline matching of UC school names to CDE directory entries (R26), and (2) client-side search for users finding schools (R6). Different requirements for each."
+    selected_option: 2
+    selected_label: "Fuse.js for client-side search; Jaro-Winkler + manual overrides for pipeline matching"
+    options_snapshot:
+      - "Fuse.js for both client-side and pipeline"
+      - "Custom Levenshtein implementation for both"
+      - "Fuse.js for client-side search; Jaro-Winkler + manual overrides for pipeline matching"
+      - "FlexSearch for client-side; manual mapping only for pipeline"
+    custom_response: null
+    rationale: "Client-side: Fuse.js is ~5 KB gzipped, purpose-built for fuzzy search over lists, handles partial matches and typos, works within the 500ms budget on ~4,000 schools. Pipeline: Jaro-Winkler is well-suited for name matching (weights prefix similarity), combined with a committed manual override file for known mismatches that no algorithm can resolve. Four-stage matching: exact → normalized → Jaro-Winkler (≥0.85) → manual override → flag for review."
+    timestamp: 2026-03-28T01:00:00Z
+
+  - id: D-design-005
+    phase: design
+    agent: architect
+    context: "Data chunking granularity — given campus-level partitioning (D-design-003), should data be further split by year within each campus file?"
+    selected_option: 0
+    selected_label: "No further chunking; campus-level partitioning is sufficient"
+    options_snapshot:
+      - "No further chunking; campus-level partitioning is sufficient"
+      - "Split by year within each campus (100 total files)"
+      - "Split by year only (10 files, no campus split)"
+    custom_response: null
+    rationale: "At ~200-300 KB per campus file gzipped, each loads in under 200ms on 10 Mbps. Year-level partitioning would create 100 files with minimal performance benefit and added complexity. If 30-year data is added in a future release, year partitioning can be introduced then."
+    timestamp: 2026-03-28T01:00:00Z

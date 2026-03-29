@@ -1,0 +1,9 @@
+protocol: full
+protocol_id: SNPR-20260328-9d62
+phase: discover
+timestamp: 2026-03-28T00:10:00Z
+status: completed
+agents:
+  - name: analyst
+    status: completed
+commits: []
