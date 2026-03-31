@@ -171,6 +171,32 @@ export default function ByCollegePage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Summary stats computed from full (unfiltered) dataset
+  const summaryStats = useMemo(() => {
+    let totalApplicants = 0;
+    let totalAdmits = 0;
+    let gpaWeightedSum = 0;
+    let gpaWeightTotal = 0;
+
+    for (const row of aggregatedRows) {
+      if (row.applicants !== null) {
+        totalApplicants += row.applicants;
+        if (row.gpaApplicants !== null) {
+          gpaWeightedSum += row.gpaApplicants * row.applicants;
+          gpaWeightTotal += row.applicants;
+        }
+      }
+      if (row.admits !== null) totalAdmits += row.admits;
+    }
+
+    return {
+      totalApplicants,
+      totalAdmits,
+      avgAcceptRate: totalApplicants > 0 ? totalAdmits / totalApplicants : null,
+      avgGpa: gpaWeightTotal > 0 ? gpaWeightedSum / gpaWeightTotal : null,
+    };
+  }, [aggregatedRows]);
+
   if (loading) {
     return <div className="page-loading">Loading campus data…</div>;
   }
@@ -228,6 +254,32 @@ export default function ByCollegePage() {
             ? `Showing ${aggregatedRows.filter((r) => r.school.name.toLowerCase().includes(debouncedQuery.trim().toLowerCase())).length} of ${aggregatedRows.length} schools`
             : `${aggregatedRows.length} schools`}
         </span>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="headline-stats" style={{ marginTop: "var(--space-6)", justifyContent: "flex-start" }}>
+        <div className="stat-card">
+          <span className="stat-label">Total Applicants</span>
+          <span className="stat-value">{summaryStats.totalApplicants.toLocaleString()}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Total Admits</span>
+          <span className="stat-value">{summaryStats.totalAdmits.toLocaleString()}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Avg Accept Rate</span>
+          <span className="stat-value">
+            {summaryStats.avgAcceptRate !== null
+              ? `${(summaryStats.avgAcceptRate * 100).toFixed(1)}%`
+              : "—"}
+          </span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Avg Applicant GPA</span>
+          <span className="stat-value">
+            {summaryStats.avgGpa !== null ? summaryStats.avgGpa.toFixed(2) : "—"}
+          </span>
+        </div>
       </div>
     </div>
   );
