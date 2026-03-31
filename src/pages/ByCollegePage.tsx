@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import type {
   School,
   SchoolIndex,
@@ -8,6 +9,7 @@ import type {
 } from "../types/index.ts";
 import { getSchoolIndex, getCampusData } from "../services/dataService.ts";
 import CampusMultiSelect from "../components/filters/CampusMultiSelect.tsx";
+import MissingDataIndicator from "../components/common/MissingDataIndicator.tsx";
 
 /** Individual campus slugs (no systemwide) */
 const CAMPUS_SLUGS: CampusSlug[] = [
@@ -31,6 +33,44 @@ interface AggregatedSchoolRow {
   gpaApplicants: number | null;
   seniors: number | null;
   applicationRate: number | null;
+}
+
+type SortKey =
+  | "name"
+  | "type"
+  | "county"
+  | "seniors"
+  | "applicants"
+  | "applicationRate"
+  | "admits"
+  | "acceptanceRate"
+  | "gpa";
+
+type SortDirection = "asc" | "desc";
+
+function nullSafeNumber(value: number | null, direction: SortDirection): number {
+  if (value === null) return direction === "asc" ? Infinity : -Infinity;
+  return value;
+}
+
+function formatPercent(value: number | null): string {
+  if (value === null) return "";
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatNumber(value: number | null): string {
+  if (value === null) return "";
+  return value.toLocaleString();
+}
+
+function formatGpa(value: number | null): string {
+  if (value === null) return "";
+  return value.toFixed(2);
+}
+
+function renderValue(formatted: string, isNull: boolean): React.ReactNode {
+  if (isNull) return <MissingDataIndicator type="suppressed" />;
+  return formatted;
 }
 
 export default function ByCollegePage() {
@@ -197,6 +237,73 @@ export default function ByCollegePage() {
     };
   }, [aggregatedRows]);
 
+  const navigate = useNavigate();
+  const [sortKey, setSortKey] = useState<SortKey>("acceptanceRate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const handleSort = useCallback(
+    (key: SortKey) => {
+      if (sortKey === key) {
+        setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      } else {
+        setSortKey(key);
+        setSortDirection("asc");
+      }
+    },
+    [sortKey],
+  );
+
+  // Sort all rows and assign rank numbers
+  const rankedRows = useMemo(() => {
+    const sorted = [...aggregatedRows];
+    const dir = sortDirection === "asc" ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case "name":
+          return dir * a.school.name.localeCompare(b.school.name);
+        case "type":
+          return dir * a.school.type.localeCompare(b.school.type);
+        case "county":
+          return dir * a.school.county.localeCompare(b.school.county);
+        case "seniors":
+          return dir * (nullSafeNumber(a.seniors, sortDirection) - nullSafeNumber(b.seniors, sortDirection));
+        case "applicants":
+          return dir * (nullSafeNumber(a.applicants, sortDirection) - nullSafeNumber(b.applicants, sortDirection));
+        case "applicationRate":
+          return dir * (nullSafeNumber(a.applicationRate, sortDirection) - nullSafeNumber(b.applicationRate, sortDirection));
+        case "admits":
+          return dir * (nullSafeNumber(a.admits, sortDirection) - nullSafeNumber(b.admits, sortDirection));
+        case "acceptanceRate":
+          return dir * (nullSafeNumber(a.acceptanceRate, sortDirection) - nullSafeNumber(b.acceptanceRate, sortDirection));
+        case "gpa":
+          return dir * (nullSafeNumber(a.gpaApplicants, sortDirection) - nullSafeNumber(b.gpaApplicants, sortDirection));
+        default:
+          return 0;
+      }
+    });
+
+    return sorted.map((row, index) => ({ ...row, rank: index + 1 }));
+  }, [aggregatedRows, sortKey, sortDirection]);
+
+  const renderSortHeader = (key: SortKey, label: string, align?: "right") => {
+    const isSorted = sortKey === key;
+    const arrow = isSorted
+      ? sortDirection === "asc" ? "\u25B2" : "\u25BC"
+      : "\u25B4";
+    return (
+      <th
+        className={isSorted ? "sorted" : ""}
+        onClick={() => handleSort(key)}
+        style={align === "right" ? { textAlign: "right" } : undefined}
+        aria-sort={isSorted ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
+      >
+        {label}
+        <span className="sort-indicator" aria-hidden="true">{arrow}</span>
+      </th>
+    );
+  };
+
   if (loading) {
     return <div className="page-loading">Loading campus data…</div>;
   }
@@ -280,6 +387,78 @@ export default function ByCollegePage() {
             {summaryStats.avgGpa !== null ? summaryStats.avgGpa.toFixed(2) : "—"}
           </span>
         </div>
+      </div>
+
+      {/* Table */}
+      <div className="data-table-wrapper" style={{ marginTop: "var(--space-6)" }}>
+        <table className="data-table" role="grid">
+          <caption className="sr-only">
+            High school admissions data ranked by {sortKey}
+          </caption>
+          <thead>
+            <tr>
+              <th style={{ textAlign: "center", cursor: "default" }}>#</th>
+              {renderSortHeader("name", "School Name")}
+              {renderSortHeader("type", "Type")}
+              {renderSortHeader("county", "County")}
+              {renderSortHeader("seniors", "Seniors", "right")}
+              {renderSortHeader("applicants", "Applicants", "right")}
+              {renderSortHeader("applicationRate", "App Rate", "right")}
+              {renderSortHeader("admits", "Admits", "right")}
+              {renderSortHeader("acceptanceRate", "Accept Rate", "right")}
+              {renderSortHeader("gpa", "Mean GPA", "right")}
+            </tr>
+          </thead>
+          <tbody>
+            {rankedRows.map((row) => (
+              <tr
+                key={row.school.id}
+                className="clickable"
+                onClick={() => navigate(`/school/${row.school.id}`)}
+                role="row"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate(`/school/${row.school.id}`);
+                  }
+                }}
+              >
+                <td style={{ textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>
+                  {row.rank}
+                </td>
+                <td>{row.school.name}</td>
+                <td>
+                  <span className={`badge badge-${row.school.type}`}>
+                    {row.school.type === "public" ? "Public" : "Private"}
+                  </span>
+                </td>
+                <td>{row.school.county}</td>
+                <td className={`numeric${row.seniors === null ? " null-value" : ""}`}>
+                  {renderValue(formatNumber(row.seniors), row.seniors === null)}
+                </td>
+                <td className={`numeric${row.applicants === null ? " null-value" : ""}`}>
+                  {renderValue(formatNumber(row.applicants), row.applicants === null)}
+                </td>
+                <td className={`numeric${row.applicationRate === null ? " null-value" : ""}`}>
+                  {renderValue(formatPercent(row.applicationRate), row.applicationRate === null)}
+                </td>
+                <td className={`numeric${row.admits === null ? " null-value" : ""}`}>
+                  {renderValue(formatNumber(row.admits), row.admits === null)}
+                </td>
+                <td className={`numeric${row.acceptanceRate === null ? " null-value" : ""}`}>
+                  {renderValue(formatPercent(row.acceptanceRate), row.acceptanceRate === null)}
+                </td>
+                <td className={`numeric${row.gpaApplicants === null ? " null-value" : ""}`}>
+                  {renderValue(formatGpa(row.gpaApplicants), row.gpaApplicants === null)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="data-table-footer-note">
+          &mdash; indicates suppressed data. Schools with very few applicants may have data withheld for privacy.
+        </p>
       </div>
     </div>
   );
