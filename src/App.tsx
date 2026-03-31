@@ -6,6 +6,7 @@ import ByCollegePage from "./pages/ByCollegePage.tsx";
 import SchoolDetailPage from "./pages/SchoolDetailPage.tsx";
 import ComparisonPage from "./pages/ComparisonPage.tsx";
 import SchoolVsSchoolPage from "./pages/SchoolVsSchoolPage.tsx";
+import MultiComparePage from "./pages/MultiComparePage.tsx";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -35,6 +36,7 @@ function App() {
             path="/compare/:schoolId1/:schoolId2"
             element={<SchoolVsSchoolPage />}
           />
+          <Route path="/multi-compare" element={<MultiComparePage />} />
         </Routes>
       </Layout>
     </HashRouter>

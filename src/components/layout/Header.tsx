@@ -53,7 +53,7 @@ export default function Header() {
             By College
           </NavLink>
           <NavLink
-            to="/compare"
+            to="/multi-compare"
             className={({ isActive }) =>
               `header-nav-link${isActive ? " active" : ""}`
             }
