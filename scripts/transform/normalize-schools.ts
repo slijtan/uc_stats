@@ -285,7 +285,6 @@ export function parseCdeDirectory(dirPath: string): CdeSchoolRecord[] {
   }
 
   // Parse tab-delimited .txt files (pubschls.txt, privschls.txt)
-  // Skip allschls.txt since pubschls + privschls covers everything
   const txtFiles = files.filter((f) => {
     const lower = f.toLowerCase();
     return lower.endsWith(".txt") &&
@@ -295,6 +294,40 @@ export function parseCdeDirectory(dirPath: string): CdeSchoolRecord[] {
     const records = parseCdeTxtFile(path.join(dirPath, file));
     console.log(`  CDE ${file}: ${records.length} active schools`);
     allRecords.push(...records);
+  }
+
+  // Parse allschls.txt as fallback for any schools not already loaded
+  // (covers private schools when privschls.txt is incomplete/corrupted)
+  const allSchlsFile = files.find((f) => f.toLowerCase() === "allschls.txt");
+  if (allSchlsFile) {
+    const allSchlsPath = path.join(dirPath, allSchlsFile);
+    const content = fs.readFileSync(allSchlsPath, "utf-8");
+    const rows = csvParse(content, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      delimiter: "\t",
+      relax_column_count: true,
+      quote: false,
+    }) as Record<string, string>[];
+
+    const existingCds = new Set(allRecords.map((r) => r.cdsCode));
+    let added = 0;
+    for (const row of rows) {
+      const status = (row["StatusType"] ?? "").trim();
+      if (status && status.toLowerCase() !== "active") continue;
+      const cdsCode = (row["CDSCode"] ?? "").trim();
+      const name = (row["School"] ?? "").trim();
+      if (!name || name === "No Data" || existingCds.has(cdsCode)) continue;
+      const city = (row["City"] ?? "").trim();
+      const county = (row["County"] ?? "").trim();
+      // Determine type: schools with even CDS district codes are often private
+      const schoolType: "public" | "private" = "private";
+      allRecords.push({ cdsCode, name, city, county, schoolType });
+      existingCds.add(cdsCode);
+      added++;
+    }
+    console.log(`  CDE ${allSchlsFile}: ${added} additional schools (deduped)`);
   }
 
   return allRecords;

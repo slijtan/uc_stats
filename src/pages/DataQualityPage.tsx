@@ -182,7 +182,7 @@ export default function DataQualityPage() {
               className={`filter-btn${filter === "all-non-exact" ? " active" : ""}`}
               onClick={() => setFilter("all-non-exact")}
             >
-              All Non-Exact
+              All
             </button>
             <button
               type="button"
@@ -221,11 +221,11 @@ export default function DataQualityPage() {
               <tr>
                 <th>UC Name</th>
                 <th>Matched CDE Name</th>
-                <th>Method</th>
+                <th>Match Method</th>
                 <th>County</th>
                 <th>Type</th>
-                <th className="numeric">Seniors</th>
-                <th className="numeric">Years</th>
+                <th className="numeric">Senior Class Size (Latest Yr)</th>
+                <th className="numeric">Years of Data</th>
               </tr>
             </thead>
             <tbody>
