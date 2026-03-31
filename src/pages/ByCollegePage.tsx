@@ -29,10 +29,15 @@ interface AggregatedSchoolRow {
   school: School;
   applicants: number | null;
   admits: number | null;
-  acceptanceRate: number | null;
-  gpaApplicants: number | null;
+  enrollees: number | null;
   seniors: number | null;
-  applicationRate: number | null;
+  // Rates
+  applicationRate: number | null;       // applicants / seniors
+  acceptanceRate: number | null;        // admits / applicants (conversion)
+  acceptanceRateOfClass: number | null; // admits / seniors
+  yield: number | null;                 // enrollees / admits (conversion)
+  enrollmentRateOfClass: number | null; // enrollees / seniors
+  gpaApplicants: number | null;
 }
 
 type SortKey =
@@ -44,6 +49,10 @@ type SortKey =
   | "applicationRate"
   | "admits"
   | "acceptanceRate"
+  | "acceptanceRateOfClass"
+  | "enrollees"
+  | "yield"
+  | "enrollmentRateOfClass"
   | "gpa";
 
 type SortDirection = "asc" | "desc";
@@ -159,6 +168,7 @@ export default function ByCollegePage() {
 
       let totalApplicants: number | null = null;
       let totalAdmits: number | null = null;
+      let totalEnrollees: number | null = null;
       let gpaWeightedSum = 0;
       let gpaWeightTotal = 0;
 
@@ -173,11 +183,19 @@ export default function ByCollegePage() {
         if (rec.admits !== null) {
           totalAdmits = (totalAdmits ?? 0) + rec.admits;
         }
+        if (rec.enrollees !== null) {
+          totalEnrollees = (totalEnrollees ?? 0) + rec.enrollees;
+        }
       }
 
       const acceptanceRate =
         totalAdmits !== null && totalApplicants !== null && totalApplicants > 0
           ? totalAdmits / totalApplicants
+          : null;
+
+      const yieldRate =
+        totalEnrollees !== null && totalAdmits !== null && totalAdmits > 0
+          ? totalEnrollees / totalAdmits
           : null;
 
       const gpaApplicants = gpaWeightTotal > 0 ? gpaWeightedSum / gpaWeightTotal : null;
@@ -187,15 +205,27 @@ export default function ByCollegePage() {
         totalApplicants !== null && seniors !== null && seniors > 0
           ? totalApplicants / seniors
           : null;
+      const acceptanceRateOfClass =
+        totalAdmits !== null && seniors !== null && seniors > 0
+          ? totalAdmits / seniors
+          : null;
+      const enrollmentRateOfClass =
+        totalEnrollees !== null && seniors !== null && seniors > 0
+          ? totalEnrollees / seniors
+          : null;
 
       rows.push({
         school,
         applicants: totalApplicants,
         admits: totalAdmits,
-        acceptanceRate,
-        gpaApplicants,
+        enrollees: totalEnrollees,
         seniors,
         applicationRate,
+        acceptanceRate,
+        acceptanceRateOfClass,
+        yield: yieldRate,
+        enrollmentRateOfClass,
+        gpaApplicants,
       });
     }
 
@@ -238,8 +268,8 @@ export default function ByCollegePage() {
   }, [aggregatedRows]);
 
   const navigate = useNavigate();
-  const [sortKey, setSortKey] = useState<SortKey>("acceptanceRate");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortKey, setSortKey] = useState<SortKey>("acceptanceRateOfClass");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const handleSort = useCallback(
     (key: SortKey) => {
@@ -276,6 +306,14 @@ export default function ByCollegePage() {
           return dir * (nullSafeNumber(a.admits, sortDirection) - nullSafeNumber(b.admits, sortDirection));
         case "acceptanceRate":
           return dir * (nullSafeNumber(a.acceptanceRate, sortDirection) - nullSafeNumber(b.acceptanceRate, sortDirection));
+        case "acceptanceRateOfClass":
+          return dir * (nullSafeNumber(a.acceptanceRateOfClass, sortDirection) - nullSafeNumber(b.acceptanceRateOfClass, sortDirection));
+        case "enrollees":
+          return dir * (nullSafeNumber(a.enrollees, sortDirection) - nullSafeNumber(b.enrollees, sortDirection));
+        case "yield":
+          return dir * (nullSafeNumber(a.yield, sortDirection) - nullSafeNumber(b.yield, sortDirection));
+        case "enrollmentRateOfClass":
+          return dir * (nullSafeNumber(a.enrollmentRateOfClass, sortDirection) - nullSafeNumber(b.enrollmentRateOfClass, sortDirection));
         case "gpa":
           return dir * (nullSafeNumber(a.gpaApplicants, sortDirection) - nullSafeNumber(b.gpaApplicants, sortDirection));
         default:
@@ -413,6 +451,10 @@ export default function ByCollegePage() {
               {renderSortHeader("applicationRate", "App Rate", "right")}
               {renderSortHeader("admits", "Admits", "right")}
               {renderSortHeader("acceptanceRate", "Accept Rate", "right")}
+              {renderSortHeader("acceptanceRateOfClass", "Accept % of Class", "right")}
+              {renderSortHeader("enrollees", "Enrollees", "right")}
+              {renderSortHeader("yield", "Yield", "right")}
+              {renderSortHeader("enrollmentRateOfClass", "Enroll % of Class", "right")}
               {renderSortHeader("gpa", "Mean GPA", "right")}
             </tr>
           </thead>
@@ -455,6 +497,18 @@ export default function ByCollegePage() {
                 </td>
                 <td className={`numeric${row.acceptanceRate === null ? " null-value" : ""}`}>
                   {renderValue(formatPercent(row.acceptanceRate), row.acceptanceRate === null)}
+                </td>
+                <td className={`numeric${row.acceptanceRateOfClass === null ? " null-value" : ""}`}>
+                  {renderValue(formatPercent(row.acceptanceRateOfClass), row.acceptanceRateOfClass === null)}
+                </td>
+                <td className={`numeric${row.enrollees === null ? " null-value" : ""}`}>
+                  {renderValue(formatNumber(row.enrollees), row.enrollees === null)}
+                </td>
+                <td className={`numeric${row.yield === null ? " null-value" : ""}`}>
+                  {renderValue(formatPercent(row.yield), row.yield === null)}
+                </td>
+                <td className={`numeric${row.enrollmentRateOfClass === null ? " null-value" : ""}`}>
+                  {renderValue(formatPercent(row.enrollmentRateOfClass), row.enrollmentRateOfClass === null)}
                 </td>
                 <td className={`numeric${row.gpaApplicants === null ? " null-value" : ""}`}>
                   {renderValue(formatGpa(row.gpaApplicants), row.gpaApplicants === null)}
