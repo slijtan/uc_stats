@@ -325,7 +325,7 @@ export default function ByCollegePage() {
   }
 
   return (
-    <div>
+    <div className="by-college-page">
       <h1 className="page-title">Admissions by College</h1>
       <p className="page-description">
         View high school admission stats for selected UC campuses
