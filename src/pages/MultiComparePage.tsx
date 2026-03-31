@@ -464,7 +464,7 @@ export default function MultiComparePage() {
                   { label: "Accept Rate", values: snapshots.map((s) => s.acceptanceRate), format: "percent" },
                   { label: "Accept % of Class", values: snapshots.map((s) => s.acceptanceRateOfClass), format: "percent" },
                   { label: "Enrollees", values: snapshots.map((s) => s.enrollees), format: "number" },
-                  { label: "Yield", values: snapshots.map((s) => s.yield), format: "percent" },
+                  { label: "Enroll Rate", values: snapshots.map((s) => s.yield), format: "percent" },
                   { label: "Enroll % of Class", values: snapshots.map((s) => s.enrollmentRateOfClass), format: "percent" },
                   { label: "GPA (Applicants)", values: snapshots.map((s) => s.gpaApplicants), format: "gpa" },
                   { label: "GPA (Admits)", values: snapshots.map((s) => s.gpaAdmits), format: "gpa" },
@@ -527,7 +527,7 @@ export default function MultiComparePage() {
               <TrendLine data={applicationRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">
-              <h3 className="subsection-title">Yield Rate</h3>
+              <h3 className="subsection-title">Enroll Rate</h3>
               <TrendLine data={yieldTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">

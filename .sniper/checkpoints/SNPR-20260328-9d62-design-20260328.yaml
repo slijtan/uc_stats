@@ -1,9 +1,0 @@
-protocol: full
-protocol_id: SNPR-20260328-9d62
-phase: design
-timestamp: 2026-03-28T00:30:00Z
-status: completed
-agents:
-  - name: architect
-    status: completed
-commits: []

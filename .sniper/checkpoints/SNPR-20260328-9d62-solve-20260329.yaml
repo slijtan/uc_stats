@@ -1,9 +1,0 @@
-protocol: full
-protocol_id: SNPR-20260328-9d62
-phase: solve
-timestamp: 2026-03-29T00:00:00Z
-status: completed
-agents:
-  - name: product-manager
-    status: completed
-commits: []

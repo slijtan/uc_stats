@@ -3,3 +3,9 @@ dist/
 .DS_Store
 *.log
 raw-data/
+public/data/
+reports/
+*.png
+.playwright-mcp/
+.sniper/
+.superpowers/

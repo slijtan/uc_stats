@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -11,6 +11,9 @@ export default function Header() {
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
   }, []);
+
+  const location = useLocation();
+  const isSchoolPage = location.pathname.startsWith("/school/");
 
   return (
     <header className="header">
@@ -53,6 +56,13 @@ export default function Header() {
             By College
           </NavLink>
           <NavLink
+            to="/school/lowell-san-francisco"
+            className={`header-nav-link${isSchoolPage ? " active" : ""}`}
+            onClick={closeMenu}
+          >
+            By High School
+          </NavLink>
+          <NavLink
             to="/multi-compare"
             className={({ isActive }) =>
               `header-nav-link${isActive ? " active" : ""}`
@@ -60,6 +70,15 @@ export default function Header() {
             onClick={closeMenu}
           >
             Compare
+          </NavLink>
+          <NavLink
+            to="/data-quality"
+            className={({ isActive }) =>
+              `header-nav-link${isActive ? " active" : ""}`
+            }
+            onClick={closeMenu}
+          >
+            Data Quality
           </NavLink>
         </nav>
       </div>

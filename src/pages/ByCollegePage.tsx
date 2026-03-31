@@ -144,23 +144,25 @@ export default function ByCollegePage() {
       schoolMap.set(s.id, s);
     }
 
-    // Collect records per school across selected campuses for the year
-    const perSchool = new Map<string, AdmissionRecord[]>();
+    // Collect records per school, tagged with campus slug
+    type TaggedRecord = AdmissionRecord & { _campus: CampusSlug };
+    const perSchool = new Map<string, TaggedRecord[]>();
     for (const slug of selectedCampuses) {
       const cd = campusDataMap.get(slug);
       if (!cd) continue;
       for (const rec of cd.records) {
         if (rec.year !== selectedYear) continue;
+        const tagged = { ...rec, _campus: slug } as TaggedRecord;
         const existing = perSchool.get(rec.schoolId);
         if (existing) {
-          existing.push(rec);
+          existing.push(tagged);
         } else {
-          perSchool.set(rec.schoolId, [rec]);
+          perSchool.set(rec.schoolId, [tagged]);
         }
       }
     }
 
-    // Aggregate
+    // Aggregate — compute per-campus rates and average them
     const rows: AggregatedSchoolRow[] = [];
     for (const [schoolId, records] of perSchool) {
       const school = schoolMap.get(schoolId);
@@ -172,9 +174,15 @@ export default function ByCollegePage() {
       let gpaWeightedSum = 0;
       let gpaWeightTotal = 0;
 
+      // Group by campus for per-campus rate averaging
+      const byCampus = new Map<CampusSlug, { app: number; adm: number; enr: number }>();
       for (const rec of records) {
+        let c = byCampus.get(rec._campus);
+        if (!c) { c = { app: 0, adm: 0, enr: 0 }; byCampus.set(rec._campus, c); }
+
         if (rec.applicants !== null) {
           totalApplicants = (totalApplicants ?? 0) + rec.applicants;
+          c.app += rec.applicants;
           if (rec.gpaApplicants !== null) {
             gpaWeightedSum += rec.gpaApplicants * rec.applicants;
             gpaWeightTotal += rec.applicants;
@@ -182,36 +190,46 @@ export default function ByCollegePage() {
         }
         if (rec.admits !== null) {
           totalAdmits = (totalAdmits ?? 0) + rec.admits;
+          c.adm += rec.admits;
         }
         if (rec.enrollees !== null) {
           totalEnrollees = (totalEnrollees ?? 0) + rec.enrollees;
+          c.enr += rec.enrollees;
         }
       }
 
-      const acceptanceRate =
-        totalAdmits !== null && totalApplicants !== null && totalApplicants > 0
-          ? totalAdmits / totalApplicants
-          : null;
+      // Average per-campus acceptance and yield rates
+      const campusAcceptRates: number[] = [];
+      const campusYieldRates: number[] = [];
+      for (const c of byCampus.values()) {
+        if (c.app > 0) campusAcceptRates.push(c.adm / c.app);
+        if (c.adm > 0) campusYieldRates.push(c.enr / c.adm);
+      }
 
-      const yieldRate =
-        totalEnrollees !== null && totalAdmits !== null && totalAdmits > 0
-          ? totalEnrollees / totalAdmits
-          : null;
+      const acceptanceRate = campusAcceptRates.length > 0
+        ? campusAcceptRates.reduce((a, b) => a + b, 0) / campusAcceptRates.length
+        : null;
+
+      const yieldRate = campusYieldRates.length > 0
+        ? campusYieldRates.reduce((a, b) => a + b, 0) / campusYieldRates.length
+        : null;
 
       const gpaApplicants = gpaWeightTotal > 0 ? gpaWeightedSum / gpaWeightTotal : null;
 
       const seniors = school.grade12Enrollment?.[String(selectedYear)] ?? null;
+      // For "of class" rates, average across campuses
+      const campusCount = byCampus.size || 1;
       const applicationRate =
         totalApplicants !== null && seniors !== null && seniors > 0
-          ? totalApplicants / seniors
+          ? (totalApplicants / campusCount) / seniors
           : null;
       const acceptanceRateOfClass =
         totalAdmits !== null && seniors !== null && seniors > 0
-          ? totalAdmits / seniors
+          ? (totalAdmits / campusCount) / seniors
           : null;
       const enrollmentRateOfClass =
         totalEnrollees !== null && seniors !== null && seniors > 0
-          ? totalEnrollees / seniors
+          ? (totalEnrollees / campusCount) / seniors
           : null;
 
       rows.push({
@@ -234,6 +252,7 @@ export default function ByCollegePage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [schoolTypeFilter, setSchoolTypeFilter] = useState<"all" | "public" | "private">("all");
 
   // Debounce search input
   useEffect(() => {
@@ -283,9 +302,12 @@ export default function ByCollegePage() {
     [sortKey],
   );
 
-  // Sort all rows and assign rank numbers
+  // Filter by school type, then sort and assign rank numbers
   const rankedRows = useMemo(() => {
-    const sorted = [...aggregatedRows];
+    const filtered = schoolTypeFilter === "all"
+      ? aggregatedRows
+      : aggregatedRows.filter((row) => row.school.type === schoolTypeFilter);
+    const sorted = [...filtered];
     const dir = sortDirection === "asc" ? 1 : -1;
 
     sorted.sort((a, b) => {
@@ -322,9 +344,9 @@ export default function ByCollegePage() {
     });
 
     return sorted.map((row, index) => ({ ...row, rank: index + 1 }));
-  }, [aggregatedRows, sortKey, sortDirection]);
+  }, [aggregatedRows, sortKey, sortDirection, schoolTypeFilter]);
 
-  // Filter ranked rows by search — rank numbers are preserved from the full sorted list
+  // Filter ranked rows by search — rank numbers reflect the type-filtered set
   const displayRows = useMemo(() => {
     if (!debouncedQuery.trim()) return rankedRows;
     const q = debouncedQuery.trim().toLowerCase();
@@ -389,25 +411,6 @@ export default function ByCollegePage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", marginTop: "var(--space-6)", flexWrap: "wrap" }}>
-        <div className="school-search" style={{ maxWidth: 360 }}>
-          <input
-            type="text"
-            className="school-search-input"
-            placeholder="Search schools..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search schools by name"
-          />
-        </div>
-        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-          {debouncedQuery.trim()
-            ? `Showing ${displayRows.length} of ${rankedRows.length} schools`
-            : `${rankedRows.length} schools`}
-        </span>
-      </div>
-
       {/* Summary Stats */}
       <div className="headline-stats" style={{ marginTop: "var(--space-6)", justifyContent: "flex-start" }}>
         <div className="stat-card">
@@ -434,6 +437,38 @@ export default function ByCollegePage() {
         </div>
       </div>
 
+      {/* Search & Type Filter */}
+      <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", marginTop: "var(--space-6)", flexWrap: "wrap" }}>
+        <div className="school-search" style={{ maxWidth: 360 }}>
+          <input
+            type="text"
+            className="school-search-input"
+            placeholder="Search schools..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search schools by name"
+          />
+        </div>
+        <div className="filter-field">
+          <label className="filter-label">Type</label>
+          <select
+            className="filter-select"
+            value={schoolTypeFilter}
+            onChange={(e) => setSchoolTypeFilter(e.target.value as "all" | "public" | "private")}
+            aria-label="Filter by school type"
+          >
+            <option value="all">All</option>
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+          {displayRows.length !== rankedRows.length
+            ? `Showing ${displayRows.length} of ${rankedRows.length} schools`
+            : `${rankedRows.length} schools`}
+        </span>
+      </div>
+
       {/* Table */}
       <div className="data-table-wrapper" style={{ marginTop: "var(--space-6)" }}>
         <table className="data-table" role="grid">
@@ -453,7 +488,7 @@ export default function ByCollegePage() {
               {renderSortHeader("acceptanceRate", "Accept Rate", "right")}
               {renderSortHeader("acceptanceRateOfClass", "Accept % of Class", "right")}
               {renderSortHeader("enrollees", "Enrollees", "right")}
-              {renderSortHeader("yield", "Yield", "right")}
+              {renderSortHeader("yield", "Enroll Rate", "right")}
               {renderSortHeader("enrollmentRateOfClass", "Enroll % of Class", "right")}
               {renderSortHeader("gpa", "Mean GPA", "right")}
             </tr>
