@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import type {
   School,
   SchoolIndex,
@@ -9,6 +9,7 @@ import type {
 import { getSchoolIndex, getCampusData } from "../services/dataService.ts";
 import SchoolSearch from "../components/search/SchoolSearch.tsx";
 import CampusMultiSelect from "../components/filters/CampusMultiSelect.tsx";
+import MissingDataIndicator from "../components/common/MissingDataIndicator.tsx";
 
 /** Individual campus slugs (no systemwide) */
 const CAMPUS_SLUGS: CampusSlug[] = [
@@ -44,6 +45,16 @@ const SCHOOL_CHIP_TEXT = [
   "#92400e",
   "#5b21b6",
 ];
+
+function fmtPct(v: number | null): string {
+  return v !== null ? `${(v * 100).toFixed(1)}%` : "";
+}
+function fmtNum(v: number | null): string {
+  return v !== null ? v.toLocaleString() : "";
+}
+function fmtGpa(v: number | null): string {
+  return v !== null ? v.toFixed(2) : "";
+}
 
 export default function MultiComparePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -121,6 +132,87 @@ export default function MultiComparePage() {
     }
     return [...years].sort((a, b) => b - a);
   }, [campusDataMap]);
+
+  /** Aggregated stats for one school */
+  interface SchoolSnapshot {
+    school: School;
+    applicants: number | null;
+    admits: number | null;
+    enrollees: number | null;
+    seniors: number | null;
+    applicationRate: number | null;
+    acceptanceRate: number | null;
+    acceptanceRateOfClass: number | null;
+    yield: number | null;
+    enrollmentRateOfClass: number | null;
+    gpaApplicants: number | null;
+    gpaAdmits: number | null;
+  }
+
+  // Aggregate stats for each selected school across selected campuses for the chosen year
+  const snapshots = useMemo((): SchoolSnapshot[] => {
+    if (selectedYear === null) return [];
+
+    return selectedSchools.map((school) => {
+      let totalApplicants: number | null = null;
+      let totalAdmits: number | null = null;
+      let totalEnrollees: number | null = null;
+      let gpaAppSum = 0, gpaAppWeight = 0;
+      let gpaAdmSum = 0, gpaAdmWeight = 0;
+
+      for (const slug of selectedCampuses) {
+        const cd = campusDataMap.get(slug);
+        if (!cd) continue;
+        for (const rec of cd.records) {
+          if (rec.year !== selectedYear || rec.schoolId !== school.id) continue;
+          if (rec.applicants !== null) {
+            totalApplicants = (totalApplicants ?? 0) + rec.applicants;
+            if (rec.gpaApplicants !== null) {
+              gpaAppSum += rec.gpaApplicants * rec.applicants;
+              gpaAppWeight += rec.applicants;
+            }
+          }
+          if (rec.admits !== null) {
+            totalAdmits = (totalAdmits ?? 0) + rec.admits;
+            if (rec.gpaAdmits !== null) {
+              gpaAdmSum += rec.gpaAdmits * rec.admits;
+              gpaAdmWeight += rec.admits;
+            }
+          }
+          if (rec.enrollees !== null) {
+            totalEnrollees = (totalEnrollees ?? 0) + rec.enrollees;
+          }
+        }
+      }
+
+      const seniors = school.grade12Enrollment?.[String(selectedYear)] ?? null;
+
+      return {
+        school,
+        applicants: totalApplicants,
+        admits: totalAdmits,
+        enrollees: totalEnrollees,
+        seniors,
+        applicationRate:
+          totalApplicants !== null && seniors !== null && seniors > 0
+            ? totalApplicants / seniors : null,
+        acceptanceRate:
+          totalAdmits !== null && totalApplicants !== null && totalApplicants > 0
+            ? totalAdmits / totalApplicants : null,
+        acceptanceRateOfClass:
+          totalAdmits !== null && seniors !== null && seniors > 0
+            ? totalAdmits / seniors : null,
+        yield:
+          totalEnrollees !== null && totalAdmits !== null && totalAdmits > 0
+            ? totalEnrollees / totalAdmits : null,
+        enrollmentRateOfClass:
+          totalEnrollees !== null && seniors !== null && seniors > 0
+            ? totalEnrollees / seniors : null,
+        gpaApplicants: gpaAppWeight > 0 ? gpaAppSum / gpaAppWeight : null,
+        gpaAdmits: gpaAdmWeight > 0 ? gpaAdmSum / gpaAdmWeight : null,
+      };
+    });
+  }, [selectedSchools, selectedCampuses, selectedYear, campusDataMap]);
 
   const handleAddSchool = useCallback(
     (school: School) => {
@@ -231,6 +323,96 @@ export default function MultiComparePage() {
 
       {selectedSchools.length === 0 && (
         <p className="no-data-message">Search for schools above to start comparing.</p>
+      )}
+
+      {selectedSchools.length > 0 && snapshots.length > 0 && (
+        <section style={{ marginTop: "var(--space-8)" }}>
+          <h2 className="section-title">At a Glance ({selectedYear})</h2>
+          <div className="data-table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  {snapshots.map((snap, i) => (
+                    <th key={snap.school.id} style={{ textAlign: "right" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span style={{
+                          width: 8, height: 8, borderRadius: "50%",
+                          background: SCHOOL_COLORS[i], display: "inline-block",
+                        }} />
+                        <Link
+                          to={`/school/${snap.school.id}`}
+                          style={{ color: SCHOOL_COLORS[i], textDecoration: "none" }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {snap.school.name.length > 20
+                            ? snap.school.name.substring(0, 20) + "\u2026"
+                            : snap.school.name}
+                        </Link>
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {([
+                  { label: "County", values: snapshots.map((s) => s.school.county), format: "text" },
+                  { label: "Type", values: snapshots.map((s) => s.school.type === "public" ? "Public" : "Private"), format: "text" },
+                  { label: "Seniors", values: snapshots.map((s) => s.seniors), format: "number" },
+                  { label: "Applicants", values: snapshots.map((s) => s.applicants), format: "number" },
+                  { label: "App Rate", values: snapshots.map((s) => s.applicationRate), format: "percent" },
+                  { label: "Admits", values: snapshots.map((s) => s.admits), format: "number" },
+                  { label: "Accept Rate", values: snapshots.map((s) => s.acceptanceRate), format: "percent" },
+                  { label: "Accept % of Class", values: snapshots.map((s) => s.acceptanceRateOfClass), format: "percent" },
+                  { label: "Enrollees", values: snapshots.map((s) => s.enrollees), format: "number" },
+                  { label: "Yield", values: snapshots.map((s) => s.yield), format: "percent" },
+                  { label: "Enroll % of Class", values: snapshots.map((s) => s.enrollmentRateOfClass), format: "percent" },
+                  { label: "GPA (Applicants)", values: snapshots.map((s) => s.gpaApplicants), format: "gpa" },
+                  { label: "GPA (Admits)", values: snapshots.map((s) => s.gpaAdmits), format: "gpa" },
+                ] as { label: string; values: (string | number | null)[]; format: string }[]).map((row) => {
+                  // Find best (highest numeric) value for bolding
+                  const numericValues = row.values.map((v) =>
+                    typeof v === "number" ? v : null
+                  );
+                  const maxVal = numericValues.some((v) => v !== null)
+                    ? Math.max(...numericValues.filter((v): v is number => v !== null))
+                    : null;
+                  const isBoldable = row.format !== "text";
+
+                  return (
+                    <tr key={row.label}>
+                      <td style={{ fontWeight: 500 }}>{row.label}</td>
+                      {row.values.map((val, i) => {
+                        const isNull = val === null;
+                        const isBest = isBoldable && typeof val === "number" && val === maxVal && numericValues.filter((v) => v === maxVal).length === 1;
+                        let formatted = "";
+                        if (typeof val === "string") {
+                          formatted = val;
+                        } else if (row.format === "percent") {
+                          formatted = fmtPct(val);
+                        } else if (row.format === "gpa") {
+                          formatted = fmtGpa(val);
+                        } else {
+                          formatted = fmtNum(val);
+                        }
+
+                        return (
+                          <td
+                            key={i}
+                            className={typeof val !== "string" ? `numeric${isNull ? " null-value" : ""}` : ""}
+                            style={isBest ? { fontWeight: 600 } : undefined}
+                          >
+                            {isNull ? <MissingDataIndicator type="suppressed" /> : formatted}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );
