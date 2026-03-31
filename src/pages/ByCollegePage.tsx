@@ -162,6 +162,15 @@ export default function ByCollegePage() {
     return rows;
   }, [schoolIndex, campusDataMap, selectedCampuses, selectedYear]);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 150);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   if (loading) {
     return <div className="page-loading">Loading campus data…</div>;
   }
@@ -202,10 +211,24 @@ export default function ByCollegePage() {
         </div>
       </div>
 
-      {/* Temporary: show count to verify data loading */}
-      <p style={{ marginTop: "1rem", color: "var(--color-text-secondary)" }}>
-        {aggregatedRows.length} schools loaded
-      </p>
+      {/* Search */}
+      <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", marginTop: "var(--space-6)", flexWrap: "wrap" }}>
+        <div className="school-search" style={{ maxWidth: 360 }}>
+          <input
+            type="text"
+            className="school-search-input"
+            placeholder="Search schools..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search schools by name"
+          />
+        </div>
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+          {debouncedQuery.trim()
+            ? `Showing ${aggregatedRows.filter((r) => r.school.name.toLowerCase().includes(debouncedQuery.trim().toLowerCase())).length} of ${aggregatedRows.length} schools`
+            : `${aggregatedRows.length} schools`}
+        </span>
+      </div>
     </div>
   );
 }
