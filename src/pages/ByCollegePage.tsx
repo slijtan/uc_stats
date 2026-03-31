@@ -286,6 +286,13 @@ export default function ByCollegePage() {
     return sorted.map((row, index) => ({ ...row, rank: index + 1 }));
   }, [aggregatedRows, sortKey, sortDirection]);
 
+  // Filter ranked rows by search — rank numbers are preserved from the full sorted list
+  const displayRows = useMemo(() => {
+    if (!debouncedQuery.trim()) return rankedRows;
+    const q = debouncedQuery.trim().toLowerCase();
+    return rankedRows.filter((row) => row.school.name.toLowerCase().includes(q));
+  }, [rankedRows, debouncedQuery]);
+
   const renderSortHeader = (key: SortKey, label: string, align?: "right") => {
     const isSorted = sortKey === key;
     const arrow = isSorted
@@ -358,8 +365,8 @@ export default function ByCollegePage() {
         </div>
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           {debouncedQuery.trim()
-            ? `Showing ${aggregatedRows.filter((r) => r.school.name.toLowerCase().includes(debouncedQuery.trim().toLowerCase())).length} of ${aggregatedRows.length} schools`
-            : `${aggregatedRows.length} schools`}
+            ? `Showing ${displayRows.length} of ${rankedRows.length} schools`
+            : `${rankedRows.length} schools`}
         </span>
       </div>
 
@@ -410,7 +417,7 @@ export default function ByCollegePage() {
             </tr>
           </thead>
           <tbody>
-            {rankedRows.map((row) => (
+            {displayRows.map((row) => (
               <tr
                 key={row.school.id}
                 className="clickable"
