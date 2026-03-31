@@ -10,6 +10,8 @@ import { getSchoolIndex, getCampusData } from "../services/dataService.ts";
 import SchoolSearch from "../components/search/SchoolSearch.tsx";
 import CampusMultiSelect from "../components/filters/CampusMultiSelect.tsx";
 import MissingDataIndicator from "../components/common/MissingDataIndicator.tsx";
+import TrendLine from "../components/charts/TrendLine.tsx";
+import type { TrendDataPoint, TrendLineSeries } from "../components/charts/TrendLine.tsx";
 
 /** Individual campus slugs (no systemwide) */
 const CAMPUS_SLUGS: CampusSlug[] = [
@@ -214,6 +216,103 @@ export default function MultiComparePage() {
     });
   }, [selectedSchools, selectedCampuses, selectedYear, campusDataMap]);
 
+  // Aggregate records per school per year across selected campuses
+  const schoolYearAggregates = useMemo(() => {
+    const result = new Map<string, Map<number, {
+      applicants: number; admits: number; enrollees: number;
+      gpaAppSum: number; gpaAppWeight: number;
+      seniors: number | null;
+    }>>();
+
+    for (const school of selectedSchools) {
+      const yearMap = new Map<number, {
+        applicants: number; admits: number; enrollees: number;
+        gpaAppSum: number; gpaAppWeight: number;
+        seniors: number | null;
+      }>();
+
+      for (const slug of selectedCampuses) {
+        const cd = campusDataMap.get(slug);
+        if (!cd) continue;
+        for (const rec of cd.records) {
+          if (rec.schoolId !== school.id) continue;
+          let agg = yearMap.get(rec.year);
+          if (!agg) {
+            agg = {
+              applicants: 0, admits: 0, enrollees: 0,
+              gpaAppSum: 0, gpaAppWeight: 0,
+              seniors: school.grade12Enrollment?.[String(rec.year)] ?? null,
+            };
+            yearMap.set(rec.year, agg);
+          }
+          if (rec.applicants !== null) {
+            agg.applicants += rec.applicants;
+            if (rec.gpaApplicants !== null) {
+              agg.gpaAppSum += rec.gpaApplicants * rec.applicants;
+              agg.gpaAppWeight += rec.applicants;
+            }
+          }
+          if (rec.admits !== null) agg.admits += rec.admits;
+          if (rec.enrollees !== null) agg.enrollees += rec.enrollees;
+        }
+      }
+
+      result.set(school.id, yearMap);
+    }
+
+    return result;
+  }, [selectedSchools, selectedCampuses, campusDataMap]);
+
+  // Build trend data for a given metric
+  function buildTrend(
+    extract: (agg: { applicants: number; admits: number; enrollees: number; gpaAppSum: number; gpaAppWeight: number; seniors: number | null }) => number | null,
+  ): TrendDataPoint[] {
+    const allYears = new Set<number>();
+    for (const yearMap of schoolYearAggregates.values()) {
+      for (const y of yearMap.keys()) allYears.add(y);
+    }
+
+    const years = [...allYears].sort((a, b) => a - b);
+    return years.map((year) => {
+      const point: TrendDataPoint = { year };
+      for (const school of selectedSchools) {
+        const agg = schoolYearAggregates.get(school.id)?.get(year);
+        point[school.id] = agg ? extract(agg) : null;
+      }
+      return point;
+    });
+  }
+
+  const acceptanceRateTrend = useMemo(
+    () => buildTrend((a) => a.applicants > 0 ? a.admits / a.applicants : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const applicationRateTrend = useMemo(
+    () => buildTrend((a) => a.seniors !== null && a.seniors > 0 ? a.applicants / a.seniors : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const yieldTrend = useMemo(
+    () => buildTrend((a) => a.admits > 0 ? a.enrollees / a.admits : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const gpaTrend = useMemo(
+    () => buildTrend((a) => a.gpaAppWeight > 0 ? a.gpaAppSum / a.gpaAppWeight : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // Shared series definition — each school is a line
+  const trendSeries: TrendLineSeries[] = useMemo(
+    () => selectedSchools.map((school, i) => ({
+      dataKey: school.id,
+      label: school.name,
+      color: SCHOOL_COLORS[i] ?? "#6b7280",
+    })),
+    [selectedSchools],
+  );
+
   const handleAddSchool = useCallback(
     (school: School) => {
       if (selectedSchoolIds.length >= MAX_SCHOOLS) return;
@@ -411,6 +510,30 @@ export default function MultiComparePage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </section>
+      )}
+
+      {selectedSchools.length > 0 && (
+        <section style={{ marginTop: "var(--space-8)" }}>
+          <h2 className="section-title">Trends Over Time</h2>
+          <div className="trend-charts-grid">
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Acceptance Rate</h3>
+              <TrendLine data={acceptanceRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
+            </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Application Rate</h3>
+              <TrendLine data={applicationRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
+            </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Yield Rate</h3>
+              <TrendLine data={yieldTrend} series={trendSeries} yAxisFormat="percent" height={280} />
+            </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Mean GPA (Applicants)</h3>
+              <TrendLine data={gpaTrend} series={trendSeries} yAxisFormat="number" yDomain={[2.5, 4.5]} height={280} />
+            </div>
           </div>
         </section>
       )}
