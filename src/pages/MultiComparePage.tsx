@@ -527,11 +527,20 @@ export default function MultiComparePage() {
       {selectedSchools.length > 0 && (
         <section style={{ marginTop: "var(--space-8)" }}>
           <h2 className="section-title">Trends Over Time</h2>
+          <h3 className="subsection-title" style={{ marginTop: "var(--space-4)" }}>Conversion Rates</h3>
           <div className="trend-charts-grid">
             <div className="trend-chart-card">
               <h3 className="subsection-title">Acceptance Rate</h3>
               <TrendLine data={acceptanceRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Enroll Rate</h3>
+              <TrendLine data={yieldTrend} series={trendSeries} yAxisFormat="percent" height={280} />
+            </div>
+          </div>
+
+          <h3 className="subsection-title" style={{ marginTop: "var(--space-8)" }}>Of Class Rates</h3>
+          <div className="trend-charts-grid">
             <div className="trend-chart-card">
               <h3 className="subsection-title">App Rate of Class</h3>
               <TrendLine data={applicationRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
@@ -539,10 +548,6 @@ export default function MultiComparePage() {
             <div className="trend-chart-card">
               <h3 className="subsection-title">Accept Rate of Class</h3>
               <TrendLine data={acceptRateOfClassTrend} series={trendSeries} yAxisFormat="percent" height={280} />
-            </div>
-            <div className="trend-chart-card">
-              <h3 className="subsection-title">Enroll Rate</h3>
-              <TrendLine data={yieldTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">
               <h3 className="subsection-title">Enroll Rate of Class</h3>
