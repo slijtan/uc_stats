@@ -3,7 +3,7 @@ import type { SchoolIndex, School } from "../types/index.ts";
 import { getSchoolIndex } from "../services/dataService.ts";
 
 type MatchMethod = School["matchMethod"];
-type FilterMode = "all-non-exact" | "fuzzy" | "unmatched";
+type FilterMode = "all-non-exact" | "fuzzy" | "unmatched" | "override";
 
 interface MatchStats {
   total: number;
@@ -81,6 +81,7 @@ export default function DataQualityPage() {
     let filtered = schoolIndex.schools.filter((s) => {
       if (filter === "fuzzy") return s.matchMethod === "fuzzy";
       if (filter === "unmatched") return s.matchMethod === "unmatched";
+      if (filter === "override") return s.matchMethod === "override";
       return s.matchMethod === "fuzzy" || s.matchMethod === "unmatched";
     });
 
@@ -104,6 +105,7 @@ export default function DataQualityPage() {
     if (!schoolIndex) return 0;
     if (filter === "fuzzy") return schoolIndex.schools.filter((s) => s.matchMethod === "fuzzy").length;
     if (filter === "unmatched") return schoolIndex.schools.filter((s) => s.matchMethod === "unmatched").length;
+    if (filter === "override") return schoolIndex.schools.filter((s) => s.matchMethod === "override").length;
     return schoolIndex.schools.filter((s) => s.matchMethod === "fuzzy" || s.matchMethod === "unmatched").length;
   }, [schoolIndex, filter]);
 
@@ -163,6 +165,7 @@ export default function DataQualityPage() {
           <div className="stat-card">
             <span className="stat-label">Override</span>
             <span className="stat-value">{stats.override.toLocaleString()}</span>
+            <span className="stat-detail">manually corrected</span>
           </div>
           <div className="stat-card">
             <span className="stat-label">Unmatched</span>
@@ -197,6 +200,13 @@ export default function DataQualityPage() {
               onClick={() => setFilter("unmatched")}
             >
               Unmatched Only
+            </button>
+            <button
+              type="button"
+              className={`filter-btn${filter === "override" ? " active" : ""}`}
+              onClick={() => setFilter("override")}
+            >
+              Overrides
             </button>
           </div>
 

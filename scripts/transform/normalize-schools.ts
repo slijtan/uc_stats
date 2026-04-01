@@ -19,6 +19,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as csvParse } from "csv-parse/sync";
+// xlsx is lazily loaded to avoid module resolution conflicts
+// when this file is imported alongside parse-tableau-export.ts
+// (both import xlsx; ESM namespace resolution can cause issues)
+import type * as XLSXTypes from "xlsx";
 // @ts-expect-error -- jaro-winkler has no type declarations
 import jaroWinkler from "jaro-winkler";
 import type { RawAdmissionRecord } from "../extract/parse-tableau-export.ts";
@@ -441,6 +445,75 @@ export function parseHistoricalEnrollmentFile(filePath: string): EnrollmentMap {
 }
 
 /**
+ * Parse a CDE Private School Affidavit .xlsx file (privateschooldata*.xlsx).
+ *
+ * These files have 5 title/summary rows, then a header row (row 6), with
+ * data starting at row 7. Key columns (by header row 6):
+ *   A: CDS Code (13-digit number, zero-padded to 14)
+ *   Q: Grade 12 Enroll
+ *
+ * The UC admissions year is derived from the filename:
+ *   privateschooldata2425.xlsx → school year 2024-25 → UC year 2025
+ *   privateschooldata1920.xlsx → school year 2019-20 → UC year 2020
+ */
+export async function parsePrivateSchoolEnrollmentFile(filePath: string): Promise<EnrollmentMap> {
+  const fileName = path.basename(filePath);
+
+  // Extract the year suffix: e.g. "2425" from "privateschooldata2425.xlsx"
+  const yearMatch = fileName.match(/privateschooldata(\d{4})\.xlsx/i);
+  if (!yearMatch) {
+    throw new Error(`Cannot parse year from private school filename: ${fileName}`);
+  }
+  const yearSuffix = yearMatch[1]!;
+  // "2425" → second two digits = "25" → 2000 + 25 = 2025
+  const secondYearPart = parseInt(yearSuffix.substring(2), 10);
+  const ucYear = 2000 + secondYearPart;
+
+  // Dynamic require to avoid ESM double-import issues with xlsx
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const XLSX = await import("xlsx") as typeof XLSXTypes;
+  const readFile = XLSX.readFile ?? XLSX.default?.readFile;
+  const sheetToJson = XLSX.utils?.sheet_to_json ?? XLSX.default?.utils?.sheet_to_json;
+
+  if (!readFile || !sheetToJson) {
+    throw new Error("Failed to load xlsx library");
+  }
+
+  const workbook = readFile(filePath);
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error(`No sheets found in ${fileName}`);
+  }
+
+  const sheet = workbook.Sheets[sheetName]!;
+  // Convert to JSON with header from row 6 (0-indexed: header row index 5)
+  // range: 5 means start reading from row index 5 (row 6 in 1-based), which
+  // becomes the header, and data starts from row index 6 (row 7 in 1-based).
+  const rows = sheetToJson<Record<string, string | number>>(sheet, {
+    range: 5,
+  });
+
+  const enrollmentMap: EnrollmentMap = new Map();
+
+  for (const row of rows) {
+    const rawCds = row["CDS Code"];
+    if (rawCds === undefined || rawCds === null) continue;
+
+    // CDS codes are stored as numbers (13 digits); pad to 14 digits
+    const cdsCode = String(rawCds).padStart(14, "0");
+
+    const gr12Raw = row["Grade 12 Enroll"];
+    const gr12 = typeof gr12Raw === "number" ? gr12Raw : parseInt(String(gr12Raw ?? "0"), 10);
+    if (isNaN(gr12) || gr12 <= 0) continue;
+
+    if (!enrollmentMap.has(cdsCode)) enrollmentMap.set(cdsCode, new Map());
+    enrollmentMap.get(cdsCode)!.set(ucYear, gr12);
+  }
+
+  return enrollmentMap;
+}
+
+/**
  * Merge multiple enrollment maps into one. Later entries override earlier ones
  * for the same CDS/year combination.
  */
@@ -493,6 +566,7 @@ const ABBREVIATION_MAP: Record<string, string> = {
   "elem.": "elementary",
   acad: "academy",
   "acad.": "academy",
+  acdmy: "academy",
   prep: "preparatory",
   "prep.": "preparatory",
   cath: "cathedral",
@@ -501,6 +575,57 @@ const ABBREVIATION_MAP: Record<string, string> = {
   "st.": "saint",
   "mt": "mount",
   "mt.": "mount",
+  // Common UC-data abbreviations
+  sch: "school",
+  schl: "school",
+  schoo: "school",
+  intl: "international",
+  intrl: "international",
+  lrng: "learning",
+  ldrshp: "leadership",
+  cmty: "community",
+  cmnty: "community",
+  cmtys: "communities",
+  chrstn: "christian",
+  chrtr: "charter",
+  colg: "college",
+  ctr: "center",
+  educ: "education",
+  ofc: "office",
+  sci: "science",
+  occ: "occupational",
+  indpndnt: "independent",
+  indpndt: "independent",
+  stdy: "study",
+  stds: "studies",
+  enrichd: "enriched",
+  enrched: "enriched",
+  enrchd: "enriched",
+  advcte: "advocate",
+  perform: "performing",
+  vlly: "valley",
+  sher: "sheriff",
+  alt: "alternative",
+  alterntvs: "alternatives",
+  altrntvs: "alternatives",
+  alternatve: "alternative",
+  // Additional truncated forms found in UC data
+  scho: "school",
+  chtr: "charter",
+  chrt: "charter",
+  chartr: "charter",
+  acade: "academy",
+  acd: "academy",
+  aca: "academy",
+  cty: "county",
+  perf: "performing",
+  ind: "independent",
+  lrn: "learning",
+  coll: "college",
+  svc: "service",
+  tech: "technology",
+  prfrming: "performing",
+  explora: "exploration",
 };
 
 /**

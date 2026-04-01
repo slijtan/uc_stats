@@ -30,6 +30,7 @@ import {
   parseCdeDirectory,
   parseCensusEnrollmentFile,
   parseHistoricalEnrollmentFile,
+  parsePrivateSchoolEnrollmentFile,
   mergeEnrollmentMaps,
 } from "./transform/normalize-schools.ts";
 import type { EnrollmentMap } from "./transform/normalize-schools.ts";
@@ -150,6 +151,14 @@ export async function runPipeline(
     for (const file of histFiles) {
       const m = parseHistoricalEnrollmentFile(path.join(cdeDir, file));
       console.log(`  Historical enrollment: ${file} → ${m.size} schools`);
+      maps.push(m);
+    }
+
+    // Private School Affidavit files (privateschooldata*.xlsx) — Grade 12 enrollment for private schools
+    const privateFiles = allFiles.filter((f) => /^privateschooldata\d{4}\.xlsx$/i.test(f));
+    for (const file of privateFiles) {
+      const m = await parsePrivateSchoolEnrollmentFile(path.join(cdeDir, file));
+      console.log(`  Private school enrollment: ${file} → ${m.size} schools`);
       maps.push(m);
     }
 
