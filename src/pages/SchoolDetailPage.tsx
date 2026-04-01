@@ -538,6 +538,66 @@ export default function SchoolDetailPage() {
     return Array.from(yearMap.values()).sort((a, b) => a.year - b.year);
   }, [school, acceptanceRateTrendCampuses, campusDataMap]);
 
+  // Accept rate of class trend: admits / grade 12 enrollment, one line per campus
+  const acceptRateOfClassTrendData = useMemo((): TrendDataPoint[] => {
+    if (!school) return [];
+
+    const yearMap = new Map<number, TrendDataPoint>();
+
+    for (const slug of acceptanceRateTrendCampuses) {
+      const campusData = campusDataMap.get(slug);
+      if (!campusData) continue;
+
+      const records = filterRecords(campusData.records, {
+        schoolIds: [school.id],
+      });
+
+      for (const record of records) {
+        const enrollment = school.grade12Enrollment[String(record.year)];
+        if (!enrollment || enrollment <= 0 || record.admits === null) continue;
+
+        let point = yearMap.get(record.year);
+        if (!point) {
+          point = { year: record.year };
+          yearMap.set(record.year, point);
+        }
+        point[slug] = record.admits / enrollment;
+      }
+    }
+
+    return Array.from(yearMap.values()).sort((a, b) => a.year - b.year);
+  }, [school, acceptanceRateTrendCampuses, campusDataMap]);
+
+  // Enroll rate of class trend: enrollees / grade 12 enrollment, one line per campus
+  const enrollRateOfClassTrendData = useMemo((): TrendDataPoint[] => {
+    if (!school) return [];
+
+    const yearMap = new Map<number, TrendDataPoint>();
+
+    for (const slug of acceptanceRateTrendCampuses) {
+      const campusData = campusDataMap.get(slug);
+      if (!campusData) continue;
+
+      const records = filterRecords(campusData.records, {
+        schoolIds: [school.id],
+      });
+
+      for (const record of records) {
+        const enrollment = school.grade12Enrollment[String(record.year)];
+        if (!enrollment || enrollment <= 0 || record.enrollees === null) continue;
+
+        let point = yearMap.get(record.year);
+        if (!point) {
+          point = { year: record.year };
+          yearMap.set(record.year, point);
+        }
+        point[slug] = record.enrollees / enrollment;
+      }
+    }
+
+    return Array.from(yearMap.values()).sort((a, b) => a.year - b.year);
+  }, [school, acceptanceRateTrendCampuses, campusDataMap]);
+
   // GPA trends: separate data sets for applicant, admitted, and enrolled — always per-campus
   function buildGpaTrendData(
     field: "gpaApplicants" | "gpaAdmits" | "gpaEnrollees",
@@ -891,6 +951,7 @@ export default function SchoolDetailPage() {
             : ""}
         </h2>
 
+        <h3 className="subsection-title" style={{ marginTop: "var(--space-4)" }}>Conversion Rates</h3>
         <div className="trend-charts-grid">
           <div className="trend-chart-card">
             <h3 className="subsection-title">Application Rate</h3>
@@ -939,7 +1000,61 @@ export default function SchoolDetailPage() {
               </p>
             )}
           </div>
+        </div>
 
+        <h3 className="subsection-title" style={{ marginTop: "var(--space-8)" }}>Of Class Rates</h3>
+        <div className="trend-charts-grid">
+          <div className="trend-chart-card">
+            <h3 className="subsection-title">App Rate of Class</h3>
+            {applicationRateTrendData.length > 0 ? (
+              <TrendLine
+                data={applicationRateTrendData}
+                series={trendSeries}
+                yAxisFormat="percent"
+                height={300}
+              />
+            ) : (
+              <p className="no-data-message">
+                No application rate trend data available (requires enrollment data).
+              </p>
+            )}
+          </div>
+
+          <div className="trend-chart-card">
+            <h3 className="subsection-title">Accept Rate of Class</h3>
+            {acceptRateOfClassTrendData.length > 0 ? (
+              <TrendLine
+                data={acceptRateOfClassTrendData}
+                series={trendSeries}
+                yAxisFormat="percent"
+                height={300}
+              />
+            ) : (
+              <p className="no-data-message">
+                No accept rate of class data available (requires enrollment data).
+              </p>
+            )}
+          </div>
+
+          <div className="trend-chart-card">
+            <h3 className="subsection-title">Enroll Rate of Class</h3>
+            {enrollRateOfClassTrendData.length > 0 ? (
+              <TrendLine
+                data={enrollRateOfClassTrendData}
+                series={trendSeries}
+                yAxisFormat="percent"
+                height={300}
+              />
+            ) : (
+              <p className="no-data-message">
+                No enroll rate of class data available (requires enrollment data).
+              </p>
+            )}
+          </div>
+        </div>
+
+        <h3 className="subsection-title" style={{ marginTop: "var(--space-8)" }}>GPA</h3>
+        <div className="trend-charts-grid">
           <div className="trend-chart-card">
             <h3 className="subsection-title">Applicant GPA</h3>
             {gpaApplicantsTrendData.length > 0 ? (
@@ -991,8 +1106,12 @@ export default function SchoolDetailPage() {
             )}
           </div>
 
+        </div>
+
+        <h3 className="subsection-title" style={{ marginTop: "var(--space-8)" }}>Graduating Class Size</h3>
+        <div className="trend-charts-grid">
           <div className="trend-chart-card">
-            <h3 className="subsection-title">Graduating Class Size</h3>
+            <h3 className="subsection-title">Grade 12 Enrollment</h3>
             {classSizeTrendData.length > 0 ? (
               <TrendLine
                 data={classSizeTrendData}

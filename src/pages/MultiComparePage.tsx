@@ -217,19 +217,19 @@ export default function MultiComparePage() {
   }, [selectedSchools, selectedCampuses, selectedYear, campusDataMap]);
 
   // Aggregate records per school per year across selected campuses
+  interface YearAggregate {
+    applicants: number; admits: number; enrollees: number;
+    gpaAppSum: number; gpaAppWeight: number;
+    gpaAdmSum: number; gpaAdmWeight: number;
+    gpaEnrSum: number; gpaEnrWeight: number;
+    seniors: number | null;
+  }
+
   const schoolYearAggregates = useMemo(() => {
-    const result = new Map<string, Map<number, {
-      applicants: number; admits: number; enrollees: number;
-      gpaAppSum: number; gpaAppWeight: number;
-      seniors: number | null;
-    }>>();
+    const result = new Map<string, Map<number, YearAggregate>>();
 
     for (const school of selectedSchools) {
-      const yearMap = new Map<number, {
-        applicants: number; admits: number; enrollees: number;
-        gpaAppSum: number; gpaAppWeight: number;
-        seniors: number | null;
-      }>();
+      const yearMap = new Map<number, YearAggregate>();
 
       for (const slug of selectedCampuses) {
         const cd = campusDataMap.get(slug);
@@ -241,6 +241,8 @@ export default function MultiComparePage() {
             agg = {
               applicants: 0, admits: 0, enrollees: 0,
               gpaAppSum: 0, gpaAppWeight: 0,
+              gpaAdmSum: 0, gpaAdmWeight: 0,
+              gpaEnrSum: 0, gpaEnrWeight: 0,
               seniors: school.grade12Enrollment?.[String(rec.year)] ?? null,
             };
             yearMap.set(rec.year, agg);
@@ -252,8 +254,20 @@ export default function MultiComparePage() {
               agg.gpaAppWeight += rec.applicants;
             }
           }
-          if (rec.admits !== null) agg.admits += rec.admits;
-          if (rec.enrollees !== null) agg.enrollees += rec.enrollees;
+          if (rec.admits !== null) {
+            agg.admits += rec.admits;
+            if (rec.gpaAdmits !== null) {
+              agg.gpaAdmSum += rec.gpaAdmits * rec.admits;
+              agg.gpaAdmWeight += rec.admits;
+            }
+          }
+          if (rec.enrollees !== null) {
+            agg.enrollees += rec.enrollees;
+            if (rec.gpaEnrollees !== null) {
+              agg.gpaEnrSum += rec.gpaEnrollees * rec.enrollees;
+              agg.gpaEnrWeight += rec.enrollees;
+            }
+          }
         }
       }
 
@@ -265,7 +279,7 @@ export default function MultiComparePage() {
 
   // Build trend data for a given metric
   function buildTrend(
-    extract: (agg: { applicants: number; admits: number; enrollees: number; gpaAppSum: number; gpaAppWeight: number; seniors: number | null }) => number | null,
+    extract: (agg: YearAggregate) => number | null,
   ): TrendDataPoint[] {
     const allYears = new Set<number>();
     for (const yearMap of schoolYearAggregates.values()) {
@@ -308,10 +322,39 @@ export default function MultiComparePage() {
     [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  const gpaTrend = useMemo(
+  const gpaApplicantsTrend = useMemo(
     () => buildTrend((a) => a.gpaAppWeight > 0 ? a.gpaAppSum / a.gpaAppWeight : null),
     [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
   );
+
+  const gpaAdmitsTrend = useMemo(
+    () => buildTrend((a) => a.gpaAdmWeight > 0 ? a.gpaAdmSum / a.gpaAdmWeight : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const gpaEnrolleesTrend = useMemo(
+    () => buildTrend((a) => a.gpaEnrWeight > 0 ? a.gpaEnrSum / a.gpaEnrWeight : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // Class size trend: grade 12 enrollment per school per year
+  const classSizeTrend = useMemo((): TrendDataPoint[] => {
+    const allYears = new Set<number>();
+    for (const school of selectedSchools) {
+      if (school.grade12Enrollment) {
+        for (const y of Object.keys(school.grade12Enrollment)) allYears.add(Number(y));
+      }
+    }
+
+    const years = [...allYears].sort((a, b) => a - b);
+    return years.map((year) => {
+      const point: TrendDataPoint = { year };
+      for (const school of selectedSchools) {
+        point[school.id] = school.grade12Enrollment?.[String(year)] ?? null;
+      }
+      return point;
+    });
+  }, [selectedSchools]);
 
   // Shared series definition — each school is a line
   const trendSeries: TrendLineSeries[] = useMemo(
@@ -530,6 +573,10 @@ export default function MultiComparePage() {
           <h3 className="subsection-title" style={{ marginTop: "var(--space-4)" }}>Conversion Rates</h3>
           <div className="trend-charts-grid">
             <div className="trend-chart-card">
+              <h3 className="subsection-title">Application Rate</h3>
+              <TrendLine data={applicationRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
+            </div>
+            <div className="trend-chart-card">
               <h3 className="subsection-title">Acceptance Rate</h3>
               <TrendLine data={acceptanceRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
@@ -553,9 +600,29 @@ export default function MultiComparePage() {
               <h3 className="subsection-title">Enroll Rate of Class</h3>
               <TrendLine data={enrollRateOfClassTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
+          </div>
+
+          <h3 className="subsection-title" style={{ marginTop: "var(--space-8)" }}>GPA</h3>
+          <div className="trend-charts-grid">
             <div className="trend-chart-card">
-              <h3 className="subsection-title">Mean GPA (Applicants)</h3>
-              <TrendLine data={gpaTrend} series={trendSeries} yAxisFormat="number" yDomain={[2.5, 4.5]} height={280} />
+              <h3 className="subsection-title">Applicant GPA</h3>
+              <TrendLine data={gpaApplicantsTrend} series={trendSeries} yAxisFormat="number" yDomain={[2.5, 4.5]} height={280} />
+            </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Admitted GPA</h3>
+              <TrendLine data={gpaAdmitsTrend} series={trendSeries} yAxisFormat="number" yDomain={[2.5, 4.5]} height={280} />
+            </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Enrolled GPA</h3>
+              <TrendLine data={gpaEnrolleesTrend} series={trendSeries} yAxisFormat="number" yDomain={[2.5, 4.5]} height={280} />
+            </div>
+          </div>
+
+          <h3 className="subsection-title" style={{ marginTop: "var(--space-8)" }}>Graduating Class Size</h3>
+          <div className="trend-charts-grid">
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Grade 12 Enrollment</h3>
+              <TrendLine data={classSizeTrend} series={trendSeries} yAxisFormat="number" height={280} />
             </div>
           </div>
         </section>
