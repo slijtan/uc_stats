@@ -298,6 +298,16 @@ export default function MultiComparePage() {
     [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const acceptRateOfClassTrend = useMemo(
+    () => buildTrend((a) => a.seniors !== null && a.seniors > 0 ? a.admits / a.seniors : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const enrollRateOfClassTrend = useMemo(
+    () => buildTrend((a) => a.seniors !== null && a.seniors > 0 ? a.enrollees / a.seniors : null),
+    [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const gpaTrend = useMemo(
     () => buildTrend((a) => a.gpaAppWeight > 0 ? a.gpaAppSum / a.gpaAppWeight : null),
     [schoolYearAggregates, selectedSchools], // eslint-disable-line react-hooks/exhaustive-deps
@@ -523,12 +533,20 @@ export default function MultiComparePage() {
               <TrendLine data={acceptanceRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">
-              <h3 className="subsection-title">Application Rate</h3>
+              <h3 className="subsection-title">App Rate of Class</h3>
               <TrendLine data={applicationRateTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">
-              <h3 className="subsection-title">Enroll Rate</h3>
+              <h3 className="subsection-title">Accept Rate of Class</h3>
+              <TrendLine data={acceptRateOfClassTrend} series={trendSeries} yAxisFormat="percent" height={280} />
+            </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Yield Rate</h3>
               <TrendLine data={yieldTrend} series={trendSeries} yAxisFormat="percent" height={280} />
+            </div>
+            <div className="trend-chart-card">
+              <h3 className="subsection-title">Enroll Rate of Class</h3>
+              <TrendLine data={enrollRateOfClassTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">
               <h3 className="subsection-title">Mean GPA (Applicants)</h3>
