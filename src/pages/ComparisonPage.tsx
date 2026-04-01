@@ -210,6 +210,60 @@ export default function ComparisonPage() {
     return buckets;
   }, [filteredRecords, filteredSchools, schoolIndex]);
 
+  // Build "of class" distribution data
+  const buildOfClassDistribution = (
+    getValue: (record: AdmissionRecord) => number | null,
+  ): DistributionDataPoint[] => {
+    if (!schoolIndex || selectedYear === null) return [];
+
+    const schoolMap = new Map(filteredSchools.map((s) => [s.id, s]));
+
+    const buckets = DISTRIBUTION_BUCKETS.map((range) => ({
+      range,
+      publicCount: 0,
+      privateCount: 0,
+    }));
+
+    for (const record of filteredRecords) {
+      const value = getValue(record);
+      if (value === null) continue;
+
+      const school = schoolMap.get(record.schoolId);
+      if (!school) continue;
+
+      const seniors = school.grade12Enrollment?.[String(selectedYear)];
+      if (!seniors || seniors <= 0) continue;
+
+      const rate = value / seniors;
+      const bucketIdx = getBucketIndex(rate);
+      const bucket = buckets[bucketIdx];
+      if (!bucket) continue;
+
+      if (school.type === "public") {
+        bucket.publicCount++;
+      } else {
+        bucket.privateCount++;
+      }
+    }
+
+    return buckets;
+  };
+
+  const appRateOfClassDistribution = useMemo(
+    () => buildOfClassDistribution((r) => r.applicants),
+    [filteredRecords, filteredSchools, schoolIndex, selectedYear],
+  );
+
+  const acceptRateOfClassDistribution = useMemo(
+    () => buildOfClassDistribution((r) => r.admits),
+    [filteredRecords, filteredSchools, schoolIndex, selectedYear],
+  );
+
+  const enrollRateOfClassDistribution = useMemo(
+    () => buildOfClassDistribution((r) => r.enrollees),
+    [filteredRecords, filteredSchools, schoolIndex, selectedYear],
+  );
+
   // Top 10 public and private schools by acceptance rate
   const topPublicSchools = useMemo(() => {
     return getTopSchools(filteredRecords, filteredSchools, "public", 10);
@@ -296,6 +350,33 @@ export default function ComparisonPage() {
           acceptance rate range.
         </p>
         <DistributionPlot data={distributionData} height={400} />
+      </section>
+
+      {/* "Of Class" Distribution Plots */}
+      <section className="section" aria-label="Of class rate distributions">
+        <h2 className="section-title">
+          &ldquo;Of Class&rdquo; Rate Distributions
+          {selectedYear ? ` (${selectedYear})` : ""}
+        </h2>
+        <p className="section-description">
+          Rates scaled to the graduating class size (grade 12 enrollment).
+          Shows what fraction of each school&rsquo;s senior class applied to,
+          was accepted by, or enrolled at the selected UC campus(es).
+        </p>
+        <div className="trend-charts-grid" style={{ marginTop: "var(--space-6)" }}>
+          <div className="trend-chart-card">
+            <h3 className="subsection-title">Application Rate of Class</h3>
+            <DistributionPlot data={appRateOfClassDistribution} height={300} />
+          </div>
+          <div className="trend-chart-card">
+            <h3 className="subsection-title">Acceptance Rate of Class</h3>
+            <DistributionPlot data={acceptRateOfClassDistribution} height={300} />
+          </div>
+          <div className="trend-chart-card">
+            <h3 className="subsection-title">Enrollment Rate of Class</h3>
+            <DistributionPlot data={enrollRateOfClassDistribution} height={300} />
+          </div>
+        </div>
       </section>
 
       {/* Top Schools Lists */}
