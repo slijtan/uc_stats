@@ -54,7 +54,6 @@ function CountySearchFilter({
 
   return (
     <div className="filter-field" ref={wrapperRef} style={{ position: "relative" }}>
-      <label className="filter-label">County</label>
       <input
         type="text"
         className="filter-select"
