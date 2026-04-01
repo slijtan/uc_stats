@@ -95,7 +95,7 @@ export default function ComparisonTable({
     ...(publicData.yieldRate !== undefined
       ? [
           {
-            label: "Yield Rate",
+            label: "Enroll Rate",
             publicValue: formatPercent(publicData.yieldRate!),
             privateValue: formatPercent(privateData.yieldRate ?? 0),
             publicRaw: publicData.yieldRate!,

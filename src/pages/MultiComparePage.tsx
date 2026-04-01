@@ -541,7 +541,7 @@ export default function MultiComparePage() {
               <TrendLine data={acceptRateOfClassTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">
-              <h3 className="subsection-title">Yield Rate</h3>
+              <h3 className="subsection-title">Enroll Rate</h3>
               <TrendLine data={yieldTrend} series={trendSeries} yAxisFormat="percent" height={280} />
             </div>
             <div className="trend-chart-card">
