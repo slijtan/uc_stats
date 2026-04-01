@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type {
   School,
@@ -10,6 +10,128 @@ import type {
 import { getSchoolIndex, getCampusData } from "../services/dataService.ts";
 import CampusMultiSelect from "../components/filters/CampusMultiSelect.tsx";
 import MissingDataIndicator from "../components/common/MissingDataIndicator.tsx";
+
+/** Searchable county dropdown */
+function CountySearchFilter({
+  value,
+  onChange,
+  counties,
+}: {
+  value: string | null;
+  onChange: (county: string | null) => void;
+  counties: string[];
+}) {
+  const [query, setQuery] = useState(value ?? "");
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const sorted = useMemo(
+    () => [...counties].sort((a, b) => a.localeCompare(b)),
+    [counties],
+  );
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return sorted;
+    const q = query.trim().toLowerCase();
+    return sorted.filter((c) => c.toLowerCase().includes(q));
+  }, [sorted, query]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Sync external value changes
+  useEffect(() => {
+    setQuery(value ?? "");
+  }, [value]);
+
+  return (
+    <div className="filter-field" ref={wrapperRef} style={{ position: "relative" }}>
+      <label className="filter-label">County</label>
+      <input
+        type="text"
+        className="filter-select"
+        placeholder="All Counties"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+          if (!e.target.value.trim()) onChange(null);
+        }}
+        onFocus={() => setOpen(true)}
+        aria-label="Filter by county"
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <ul
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            maxHeight: 240,
+            overflowY: "auto",
+            background: "var(--color-bg-secondary, #fff)",
+            border: "1px solid var(--color-border, #d1d5db)",
+            borderRadius: 6,
+            margin: 0,
+            padding: 0,
+            listStyle: "none",
+            zIndex: 50,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          }}
+        >
+          {value && (
+            <li
+              style={{
+                padding: "6px 12px",
+                cursor: "pointer",
+                fontSize: "var(--font-size-sm)",
+                color: "var(--color-text-muted)",
+                fontStyle: "italic",
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(null);
+                setQuery("");
+                setOpen(false);
+              }}
+            >
+              Clear filter
+            </li>
+          )}
+          {filtered.map((county) => (
+            <li
+              key={county}
+              style={{
+                padding: "6px 12px",
+                cursor: "pointer",
+                fontSize: "var(--font-size-sm)",
+                background: county === value ? "var(--color-bg-accent, #eff6ff)" : undefined,
+                fontWeight: county === value ? 600 : undefined,
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange(county);
+                setQuery(county);
+                setOpen(false);
+              }}
+            >
+              {county}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /** Individual campus slugs (no systemwide) */
 const CAMPUS_SLUGS: CampusSlug[] = [
@@ -253,6 +375,14 @@ export default function ByCollegePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [schoolTypeFilter, setSchoolTypeFilter] = useState<"all" | "public" | "private">("all");
+  const [countyFilter, setCountyFilter] = useState<string | null>(null);
+
+  // Available counties from school index
+  const availableCounties = useMemo(() => {
+    if (!schoolIndex) return [];
+    const countySet = new Set(schoolIndex.schools.map((s) => s.county));
+    return Array.from(countySet);
+  }, [schoolIndex]);
 
   // Debounce search input
   useEffect(() => {
@@ -302,11 +432,14 @@ export default function ByCollegePage() {
     [sortKey],
   );
 
-  // Filter by school type, then sort and assign rank numbers
+  // Filter by school type and county, then sort and assign rank numbers
   const rankedRows = useMemo(() => {
-    const filtered = schoolTypeFilter === "all"
+    let filtered = schoolTypeFilter === "all"
       ? aggregatedRows
       : aggregatedRows.filter((row) => row.school.type === schoolTypeFilter);
+    if (countyFilter) {
+      filtered = filtered.filter((row) => row.school.county === countyFilter);
+    }
     const sorted = [...filtered];
     const dir = sortDirection === "asc" ? 1 : -1;
 
@@ -344,7 +477,7 @@ export default function ByCollegePage() {
     });
 
     return sorted.map((row, index) => ({ ...row, rank: index + 1 }));
-  }, [aggregatedRows, sortKey, sortDirection, schoolTypeFilter]);
+  }, [aggregatedRows, sortKey, sortDirection, schoolTypeFilter, countyFilter]);
 
   // Filter ranked rows by search — rank numbers reflect the type-filtered set
   const displayRows = useMemo(() => {
@@ -461,6 +594,11 @@ export default function ByCollegePage() {
             <option value="private">Private</option>
           </select>
         </div>
+        <CountySearchFilter
+          value={countyFilter}
+          onChange={setCountyFilter}
+          counties={availableCounties}
+        />
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           {displayRows.length !== rankedRows.length
             ? `Showing ${displayRows.length} of ${rankedRows.length} schools`
