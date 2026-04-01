@@ -1214,6 +1214,89 @@ body {
   overflow-y: auto;
 }
 
+/* Mobile cards: hidden on desktop */
+.bc-mobile-cards {
+  display: none;
+}
+
+.bc-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.bc-card:hover {
+  background-color: var(--color-bg-tertiary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.bc-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.bc-card-rank {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  min-width: 2rem;
+}
+
+.bc-card-name {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bc-card-sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+  padding-left: 2rem;
+}
+
+.bc-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.bc-card-metric {
+  display: flex;
+  flex-direction: column;
+}
+
+.bc-card-metric-label {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bc-card-metric-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.bc-card-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
 .multi-compare-page {
   padding-bottom: var(--space-8);
 }
@@ -1653,6 +1736,15 @@ details[open] > .methodology-note-summary::before {
   .chart-table-toggle-btn {
     min-height: 44px;
     padding: var(--space-2) var(--space-3);
+  }
+
+  /* --- By College: show cards, hide table on mobile --- */
+  .bc-desktop-table {
+    display: none;
+  }
+
+  .bc-mobile-cards {
+    display: block;
   }
 
   /* --- Tables --- */

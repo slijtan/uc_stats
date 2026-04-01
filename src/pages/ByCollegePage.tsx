@@ -605,8 +605,8 @@ export default function ByCollegePage() {
         </span>
       </div>
 
-      {/* Table */}
-      <div className="data-table-wrapper data-table-full-width" style={{ marginTop: "var(--space-6)" }}>
+      {/* Desktop Table */}
+      <div className="data-table-wrapper data-table-full-width bc-desktop-table" style={{ marginTop: "var(--space-6)" }}>
         <table className="data-table" role="grid">
           <caption className="sr-only">
             High school admissions data ranked by {sortKey}
@@ -691,6 +691,66 @@ export default function ByCollegePage() {
         <p className="data-table-footer-note">
           &mdash; indicates suppressed data. Schools with very few applicants may have data withheld for privacy.
         </p>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="bc-mobile-cards" style={{ marginTop: "var(--space-6)" }}>
+        {displayRows.map((row) => (
+          <div
+            key={row.school.id}
+            className="bc-card"
+            onClick={() => navigate(`/school/${row.school.id}`)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate(`/school/${row.school.id}`);
+              }
+            }}
+          >
+            <div className="bc-card-header">
+              <span className="bc-card-rank">#{row.rank}</span>
+              <span className="bc-card-name">{row.school.name}</span>
+              <span className={`badge badge-${row.school.type}`}>
+                {row.school.type === "public" ? "Pub" : "Priv"}
+              </span>
+            </div>
+            <div className="bc-card-sub">{row.school.county} County</div>
+            <div className="bc-card-metrics">
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">App Rate</span>
+                <span className="bc-card-metric-value">{row.applicationRate !== null ? formatPercent(row.applicationRate) : "—"}</span>
+              </div>
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">Accept Rate</span>
+                <span className="bc-card-metric-value">{row.acceptanceRate !== null ? formatPercent(row.acceptanceRate) : "—"}</span>
+              </div>
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">Accept % Class</span>
+                <span className="bc-card-metric-value">{row.acceptanceRateOfClass !== null ? formatPercent(row.acceptanceRateOfClass) : "—"}</span>
+              </div>
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">Enroll Rate</span>
+                <span className="bc-card-metric-value">{row.yield !== null ? formatPercent(row.yield) : "—"}</span>
+              </div>
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">Enroll % Class</span>
+                <span className="bc-card-metric-value">{row.enrollmentRateOfClass !== null ? formatPercent(row.enrollmentRateOfClass) : "—"}</span>
+              </div>
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">GPA</span>
+                <span className="bc-card-metric-value">{row.gpaApplicants !== null ? formatGpa(row.gpaApplicants) : "—"}</span>
+              </div>
+            </div>
+            <div className="bc-card-counts">
+              {row.seniors !== null && <span>{formatNumber(row.seniors)} seniors</span>}
+              {row.applicants !== null && <span>{formatNumber(row.applicants)} applicants</span>}
+              {row.admits !== null && <span>{formatNumber(row.admits)} admits</span>}
+              {row.enrollees !== null && <span>{formatNumber(row.enrollees)} enrolled</span>}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
