@@ -37,7 +37,8 @@ export default function Header() {
           aria-label="Main navigation"
         >
           <NavLink
-            to="/by-college"
+            to="/"
+            end
             className={({ isActive }) =>
               `header-nav-link${isActive ? " active" : ""}`
             }
@@ -62,8 +63,7 @@ export default function Header() {
             Compare
           </NavLink>
           <NavLink
-            to="/"
-            end
+            to="/public-vs-private"
             className={({ isActive }) =>
               `header-nav-link${isActive ? " active" : ""}`
             }

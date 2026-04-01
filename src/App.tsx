@@ -28,11 +28,12 @@ function App() {
     <HashRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<ComparisonPage />} />
-          <Route path="/by-college" element={<ByCollegePage />} />
+          <Route path="/" element={<ByCollegePage />} />
+          <Route path="/by-college" element={<Navigate to="/" replace />} />
+          <Route path="/public-vs-private" element={<ComparisonPage />} />
           <Route path="/school" element={<SchoolDetailPage />} />
           <Route path="/school/:schoolId" element={<SchoolDetailPage />} />
-          <Route path="/compare" element={<Navigate to="/" replace />} />
+          <Route path="/compare" element={<Navigate to="/public-vs-private" replace />} />
           <Route
             path="/compare/:schoolId1/:schoolId2"
             element={<SchoolVsSchoolPage />}
