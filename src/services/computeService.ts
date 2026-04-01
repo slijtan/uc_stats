@@ -71,37 +71,49 @@ export function filterRecords(
  *
  * Calculates total applicants/admits, aggregate acceptance rate,
  * mean and median per-school acceptance rates, and weighted mean GPA.
+ * When a year is provided, also computes "of class" metrics using
+ * grade 12 enrollment data.
  *
  * @param records - Admission records (typically pre-filtered to a single year)
  * @param schools - All school metadata (used to look up school type)
  * @param schoolType - The school type to aggregate ("public" or "private")
+ * @param year - Optional year for "of class" metrics (grade 12 enrollment lookup)
  * @returns Aggregate statistics for the specified school type
  */
 export function computeGroupAggregate(
   records: AdmissionRecord[],
   schools: School[],
   schoolType: SchoolType,
+  year?: number,
 ): GroupAggregate {
-  // Build a lookup of school type by ID
-  const schoolTypeMap = new Map<SchoolId, SchoolType>();
+  // Build lookups by school ID
+  const schoolMap = new Map<SchoolId, School>();
   for (const school of schools) {
-    schoolTypeMap.set(school.id, school.type);
+    schoolMap.set(school.id, school);
   }
 
   // Filter records to only the requested school type
   const filteredRecords = records.filter(
-    (r) => schoolTypeMap.get(r.schoolId) === schoolType,
+    (r) => schoolMap.get(r.schoolId)?.type === schoolType,
   );
 
   // Track unique schools and per-school acceptance rates
   const schoolIds = new Set<SchoolId>();
   let totalApplicants = 0;
   let totalAdmits = 0;
+  let totalEnrollees = 0;
   const perSchoolRates: number[] = [];
 
   // Track GPA weighting
   let gpaWeightedSum = 0;
   let gpaWeightTotal = 0;
+
+  // Track "of class" rates
+  const perSchoolAppRateOfClass: number[] = [];
+  const perSchoolAcceptRateOfClass: number[] = [];
+  const perSchoolEnrollRateOfClass: number[] = [];
+  let schoolsWithEnrollmentData = 0;
+  const schoolsWithEnrollmentSeen = new Set<SchoolId>();
 
   for (const record of filteredRecords) {
     schoolIds.add(record.schoolId);
@@ -120,9 +132,34 @@ export function computeGroupAggregate(
       totalAdmits += record.admits;
     }
 
+    if (record.enrollees !== null) {
+      totalEnrollees += record.enrollees;
+    }
+
     const rate = computeAcceptanceRate(record);
     if (rate !== null) {
       perSchoolRates.push(rate);
+    }
+
+    // "Of class" metrics: use grade 12 enrollment if year is provided
+    if (year !== undefined) {
+      const school = schoolMap.get(record.schoolId);
+      const seniors = school?.grade12Enrollment?.[String(year)];
+      if (seniors && seniors > 0) {
+        if (!schoolsWithEnrollmentSeen.has(record.schoolId)) {
+          schoolsWithEnrollmentSeen.add(record.schoolId);
+          schoolsWithEnrollmentData++;
+        }
+        if (record.applicants !== null) {
+          perSchoolAppRateOfClass.push(record.applicants / seniors);
+        }
+        if (record.admits !== null) {
+          perSchoolAcceptRateOfClass.push(record.admits / seniors);
+        }
+        if (record.enrollees !== null) {
+          perSchoolEnrollRateOfClass.push(record.enrollees / seniors);
+        }
+      }
     }
   }
 
@@ -150,6 +187,13 @@ export function computeGroupAggregate(
   // Calculate weighted mean GPA
   const meanGpa = gpaWeightTotal > 0 ? gpaWeightedSum / gpaWeightTotal : 0;
 
+  // Calculate yield rate
+  const yieldRate = totalAdmits > 0 ? totalEnrollees / totalAdmits : 0;
+
+  // Calculate mean "of class" rates
+  const mean = (arr: number[]) =>
+    arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
   return {
     schoolCount: schoolIds.size,
     totalApplicants,
@@ -158,5 +202,11 @@ export function computeGroupAggregate(
     meanSchoolAcceptanceRate,
     medianSchoolAcceptanceRate,
     meanGpa,
+    totalEnrollees,
+    yieldRate,
+    meanApplicationRateOfClass: year !== undefined ? mean(perSchoolAppRateOfClass) : undefined,
+    meanAcceptanceRateOfClass: year !== undefined ? mean(perSchoolAcceptRateOfClass) : undefined,
+    meanEnrollmentRateOfClass: year !== undefined ? mean(perSchoolEnrollRateOfClass) : undefined,
+    schoolsWithEnrollmentData: year !== undefined ? schoolsWithEnrollmentData : undefined,
   };
 }

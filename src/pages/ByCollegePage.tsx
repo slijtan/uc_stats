@@ -450,7 +450,6 @@ export default function ByCollegePage() {
           />
         </div>
         <div className="filter-field">
-          <label className="filter-label">Type</label>
           <select
             className="filter-select"
             value={schoolTypeFilter}
@@ -470,7 +469,7 @@ export default function ByCollegePage() {
       </div>
 
       {/* Table */}
-      <div className="data-table-wrapper" style={{ marginTop: "var(--space-6)" }}>
+      <div className="data-table-wrapper data-table-full-width" style={{ marginTop: "var(--space-6)" }}>
         <table className="data-table" role="grid">
           <caption className="sr-only">
             High school admissions data ranked by {sortKey}

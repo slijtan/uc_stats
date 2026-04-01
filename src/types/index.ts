@@ -121,6 +121,18 @@ export interface GroupAggregate {
   medianSchoolAcceptanceRate: number;
   /** Mean GPA of applicants (weighted by applicant count) */
   meanGpa: number;
+  /** Total enrollees across all schools (computed client-side) */
+  totalEnrollees?: number;
+  /** Yield rate: totalEnrollees / totalAdmits (computed client-side) */
+  yieldRate?: number;
+  /** Mean per-school application rate of class: applicants / seniors (computed client-side) */
+  meanApplicationRateOfClass?: number;
+  /** Mean per-school acceptance rate of class: admits / seniors (computed client-side) */
+  meanAcceptanceRateOfClass?: number;
+  /** Mean per-school enrollment rate of class: enrollees / seniors (computed client-side) */
+  meanEnrollmentRateOfClass?: number;
+  /** Number of schools that had grade 12 enrollment data for the year */
+  schoolsWithEnrollmentData?: number;
 }
 
 /** Summary for a single campus and year */

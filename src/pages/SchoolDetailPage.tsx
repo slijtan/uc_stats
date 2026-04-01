@@ -689,6 +689,19 @@ export default function SchoolDetailPage() {
       }));
   }, [school, allSchoolRecords, selectedYears, selectedCampuses]);
 
+  // No school selected — show search landing
+  if (!schoolId) {
+    return (
+      <div className="school-search-landing" style={{ maxWidth: 540, margin: "4rem auto", textAlign: "center" }}>
+        <h1 style={{ marginBottom: "0.5rem" }}>Find a High School</h1>
+        <p style={{ color: "var(--color-text-secondary)", marginBottom: "2rem" }}>
+          Search by school name, city, or county to view UC admissions data.
+        </p>
+        <SchoolSearch placeholder="Search for a high school..." autoFocus />
+      </div>
+    );
+  }
+
   // Loading state
   if (loading) {
     return (

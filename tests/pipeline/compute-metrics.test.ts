@@ -34,6 +34,7 @@ function makeEnrichedRecord(
     city: "San Francisco",
     matched: true,
     matchMethod: "exact",
+    grade12Enrollment: null,
     ...overrides,
   };
 }

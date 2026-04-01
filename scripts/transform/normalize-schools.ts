@@ -22,7 +22,7 @@ import { parse as csvParse } from "csv-parse/sync";
 // xlsx is lazily loaded to avoid module resolution conflicts
 // when this file is imported alongside parse-tableau-export.ts
 // (both import xlsx; ESM namespace resolution can cause issues)
-import type * as XLSXTypes from "xlsx";
+// (type import removed — using `any` for dynamic xlsx import below)
 // @ts-expect-error -- jaro-winkler has no type declarations
 import jaroWinkler from "jaro-winkler";
 import type { RawAdmissionRecord } from "../extract/parse-tableau-export.ts";
@@ -471,7 +471,8 @@ export async function parsePrivateSchoolEnrollmentFile(filePath: string): Promis
 
   // Dynamic require to avoid ESM double-import issues with xlsx
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const XLSX = await import("xlsx") as typeof XLSXTypes;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const XLSX = await import("xlsx") as any;
   const readFile = XLSX.readFile ?? XLSX.default?.readFile;
   const sheetToJson = XLSX.utils?.sheet_to_json ?? XLSX.default?.utils?.sheet_to_json;
 
@@ -489,7 +490,7 @@ export async function parsePrivateSchoolEnrollmentFile(filePath: string): Promis
   // Convert to JSON with header from row 6 (0-indexed: header row index 5)
   // range: 5 means start reading from row index 5 (row 6 in 1-based), which
   // becomes the header, and data starts from row index 6 (row 7 in 1-based).
-  const rows = sheetToJson<Record<string, string | number>>(sheet, {
+  const rows = sheetToJson(sheet, {
     range: 5,
   });
 
@@ -776,7 +777,9 @@ export function normalizeSchools(
 
   const index = buildMatchIndex(cdeRecords);
 
-  // Cache match results by UC school name (avoid duplicate lookups)
+  // Cache match results by UC school name + type (avoid duplicate lookups).
+  // Including schoolType in the key prevents a private CDE match from being
+  // reused for public UC records with the same name (which may be a different school).
   const matchCache = new Map<
     string,
     { cdeRecord: CdeSchoolRecord | null; method: EnrichedRecord["matchMethod"]; id: string }
@@ -794,36 +797,74 @@ export function normalizeSchools(
 
   const enrichedRecords: EnrichedRecord[] = [];
   const unmatchedSchools: string[] = [];
+  // Track unique school names for stats (regardless of type)
+  const seenSchoolNames = new Set<string>();
 
   for (const raw of rawRecords) {
-    let cached = matchCache.get(raw.school);
+    const cacheKey = `${raw.school}\t${raw.schoolType ?? ""}`;
+    let cached = matchCache.get(cacheKey);
     if (!cached) {
-      const result = matchSchool(raw.school, index, overrides);
+      let result = matchSchool(raw.school, index, overrides);
+
+      // If the match's school type conflicts with the UC record's type,
+      // try to find a same-type CDE school instead. This prevents a large
+      // public school from being assigned to a small private school's profile
+      // (or vice versa) when they happen to share the same name.
+      if (
+        result.cdeRecord &&
+        raw.schoolType &&
+        result.cdeRecord.schoolType !== raw.schoolType &&
+        result.method !== "override"
+      ) {
+        const normalizedUcName = normalizeName(raw.school);
+        let sameTypeBestScore = 0;
+        let sameTypeBest: CdeSchoolRecord | null = null;
+        for (const cde of index.all) {
+          if (cde.schoolType !== raw.schoolType) continue;
+          const score = jaroWinkler(normalizedUcName, normalizeName(cde.name)) as number;
+          if (score >= 0.85 && score > sameTypeBestScore) {
+            sameTypeBestScore = score;
+            sameTypeBest = cde;
+          }
+        }
+        if (sameTypeBest) {
+          result = { cdeRecord: sameTypeBest, method: "fuzzy" };
+        } else {
+          // No same-type match found. Leave unmatched rather than
+          // associating a public school's data with a private school
+          // (or vice versa), which causes wildly wrong application rates.
+          result = { cdeRecord: null, method: "unmatched" };
+        }
+      }
+
       const id = result.cdeRecord
         ? result.cdeRecord.cdsCode
         : generateUnmatchedId(raw.school);
       cached = { ...result, id };
-      matchCache.set(raw.school, cached);
+      matchCache.set(cacheKey, cached);
 
-      // Update stats
-      stats.totalUniqueSchools++;
-      switch (result.method) {
-        case "exact":
-          stats.exactMatches++;
-          break;
-        case "normalized":
-          stats.normalizedMatches++;
-          break;
-        case "fuzzy":
-          stats.fuzzyMatches++;
-          break;
-        case "override":
-          stats.overrideMatches++;
-          break;
-        case "unmatched":
-          stats.unmatched++;
-          unmatchedSchools.push(raw.school);
-          break;
+      // Update stats (count unique school names, not name+type pairs)
+      if (!seenSchoolNames.has(raw.school)) {
+        seenSchoolNames.add(raw.school);
+        stats.totalUniqueSchools++;
+        switch (result.method) {
+          case "exact":
+            stats.exactMatches++;
+            break;
+          case "normalized":
+            stats.normalizedMatches++;
+            break;
+          case "fuzzy":
+            stats.fuzzyMatches++;
+            break;
+          case "override":
+            stats.overrideMatches++;
+            break;
+          case "unmatched":
+            stats.unmatched++;
+            unmatchedSchools.push(raw.school);
+            break;
+        }
       }
     }
 

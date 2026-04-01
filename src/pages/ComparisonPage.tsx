@@ -168,12 +168,12 @@ export default function ComparisonPage() {
 
   // Compute group aggregates
   const publicAggregate = useMemo((): GroupAggregate => {
-    return computeGroupAggregate(filteredRecords, filteredSchools, "public");
-  }, [filteredRecords, filteredSchools]);
+    return computeGroupAggregate(filteredRecords, filteredSchools, "public", selectedYear ?? undefined);
+  }, [filteredRecords, filteredSchools, selectedYear]);
 
   const privateAggregate = useMemo((): GroupAggregate => {
-    return computeGroupAggregate(filteredRecords, filteredSchools, "private");
-  }, [filteredRecords, filteredSchools]);
+    return computeGroupAggregate(filteredRecords, filteredSchools, "private", selectedYear ?? undefined);
+  }, [filteredRecords, filteredSchools, selectedYear]);
 
   // Build distribution data
   const distributionData = useMemo((): DistributionDataPoint[] => {

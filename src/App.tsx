@@ -1,7 +1,6 @@
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/layout/Header.tsx";
 import Footer from "./components/layout/Footer.tsx";
-import LandingPage from "./pages/LandingPage.tsx";
 import ByCollegePage from "./pages/ByCollegePage.tsx";
 import SchoolDetailPage from "./pages/SchoolDetailPage.tsx";
 import ComparisonPage from "./pages/ComparisonPage.tsx";
@@ -29,10 +28,11 @@ function App() {
     <HashRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<ComparisonPage />} />
           <Route path="/by-college" element={<ByCollegePage />} />
+          <Route path="/school" element={<SchoolDetailPage />} />
           <Route path="/school/:schoolId" element={<SchoolDetailPage />} />
-          <Route path="/compare" element={<ComparisonPage />} />
+          <Route path="/compare" element={<Navigate to="/" replace />} />
           <Route
             path="/compare/:schoolId1/:schoolId2"
             element={<SchoolVsSchoolPage />}

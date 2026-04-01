@@ -16,6 +16,7 @@ function makeRecord(overrides: Partial<AdmissionRecord> = {}): AdmissionRecord {
   return {
     schoolId: "school-1",
     year: 2024,
+    schoolType: "public",
     applicants: 100,
     admits: 50,
     enrollees: 20,
@@ -35,7 +36,9 @@ function makeSchool(overrides: Partial<School> = {}): School {
     city: "Los Angeles",
     ucName: "TEST HIGH SCHOOL",
     matched: true,
+    matchMethod: "exact",
     yearsAvailable: [2023, 2024],
+    grade12Enrollment: {},
     ...overrides,
   };
 }

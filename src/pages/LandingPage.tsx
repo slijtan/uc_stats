@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import type {
   SummaryData,
@@ -8,7 +8,6 @@ import type {
 } from "../types/index.ts";
 import { getSchoolIndex, getSummary } from "../services/dataService.ts";
 import { useFilters } from "../hooks/useFilters.ts";
-import SchoolSearch from "../components/search/SchoolSearch.tsx";
 import CampusFilter from "../components/filters/CampusFilter.tsx";
 import YearFilter from "../components/filters/YearFilter.tsx";
 import ComparisonTable from "../components/tables/ComparisonTable.tsx";
@@ -38,8 +37,6 @@ export default function LandingPage() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const searchRef = useRef<HTMLDivElement>(null);
 
   const { filters, setFilter } = useFilters();
 
@@ -162,16 +159,6 @@ export default function LandingPage() {
     ];
   }, [selectedSummary]);
 
-  const handleFocusSearch = () => {
-    if (searchRef.current) {
-      const input = searchRef.current.querySelector("input");
-      if (input) {
-        input.focus();
-        input.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-  };
-
   // Loading state
   if (loading) {
     return (
@@ -218,9 +205,6 @@ export default function LandingPage() {
           Compare acceptance rates between public and private schools across all
           nine UC campuses.
         </p>
-        <div className="hero-search" ref={searchRef}>
-          <SchoolSearch placeholder="Search for your high school..." />
-        </div>
         {summary && <DataVintageNotice year={summary.latestYear} />}
       </section>
 
@@ -350,24 +334,6 @@ export default function LandingPage() {
               </Link>
             );
           })}
-          <div
-            className="quick-nav-card quick-nav-card-action"
-            onClick={handleFocusSearch}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleFocusSearch();
-              }
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <h3 className="quick-nav-card-title">Search for Your School</h3>
-            <p className="quick-nav-card-description">
-              Look up any California high school to see its UC acceptance rates
-              across campuses and years.
-            </p>
-          </div>
         </div>
       </section>
     </div>

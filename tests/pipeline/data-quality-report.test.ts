@@ -38,6 +38,7 @@ function makeComputedRecord(
     matched: true,
     matchMethod: "exact",
     acceptanceRate: 0.5,
+    grade12Enrollment: null,
     ...overrides,
   };
 }

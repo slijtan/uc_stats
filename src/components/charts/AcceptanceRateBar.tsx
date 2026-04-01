@@ -288,7 +288,7 @@ export default function AcceptanceRateBar({
             />
             <Bar
               dataKey="acceptanceRate"
-              shape={HorizontalBarWithMarker}
+              shape={HorizontalBarWithMarker as unknown as undefined}
               radius={[0, 4, 4, 0]}
             >
               {data.map((entry, index) => (
@@ -362,7 +362,7 @@ export default function AcceptanceRateBar({
           />
           <Bar
             dataKey="acceptanceRate"
-            shape={VerticalBarWithMarker}
+            shape={VerticalBarWithMarker as unknown as undefined}
             radius={[4, 4, 0, 0]}
           >
             {data.map((entry, index) => (

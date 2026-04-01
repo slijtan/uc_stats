@@ -10,12 +10,15 @@ interface SchoolSearchProps {
   onSelect?: (school: School) => void;
   /** If true, skip navigation on select (useful when embedded in pages that handle selection) */
   navigateOnSelect?: boolean;
+  /** Auto-focus the input on mount */
+  autoFocus?: boolean;
 }
 
 export default function SchoolSearch({
   placeholder = "Search for a high school...",
   onSelect,
   navigateOnSelect = true,
+  autoFocus = false,
 }: SchoolSearchProps) {
   const { search, loading } = useSchoolSearch();
   const navigate = useNavigate();
@@ -145,6 +148,7 @@ export default function SchoolSearch({
         className="school-search-input"
         placeholder={loading ? "Loading schools..." : placeholder}
         disabled={loading}
+        autoFocus={autoFocus}
         value={query}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}

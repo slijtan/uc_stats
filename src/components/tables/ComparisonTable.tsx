@@ -56,6 +56,18 @@ export default function ComparisonTable({
       privateRaw: privateData.totalAdmits,
       higherIsBetter: true,
     },
+    ...(publicData.totalEnrollees !== undefined
+      ? [
+          {
+            label: "Total Enrollees",
+            publicValue: formatNumber(publicData.totalEnrollees!),
+            privateValue: formatNumber(privateData.totalEnrollees ?? 0),
+            publicRaw: publicData.totalEnrollees!,
+            privateRaw: privateData.totalEnrollees ?? 0,
+            higherIsBetter: true,
+          },
+        ]
+      : []),
     {
       label: "Acceptance Rate",
       publicValue: formatPercent(publicData.acceptanceRate),
@@ -80,6 +92,46 @@ export default function ComparisonTable({
       privateRaw: privateData.medianSchoolAcceptanceRate,
       higherIsBetter: true,
     },
+    ...(publicData.yieldRate !== undefined
+      ? [
+          {
+            label: "Yield Rate",
+            publicValue: formatPercent(publicData.yieldRate!),
+            privateValue: formatPercent(privateData.yieldRate ?? 0),
+            publicRaw: publicData.yieldRate!,
+            privateRaw: privateData.yieldRate ?? 0,
+            higherIsBetter: true,
+          },
+        ]
+      : []),
+    ...(publicData.meanApplicationRateOfClass !== undefined
+      ? [
+          {
+            label: "Mean App Rate of Class",
+            publicValue: formatPercent(publicData.meanApplicationRateOfClass!),
+            privateValue: formatPercent(privateData.meanApplicationRateOfClass ?? 0),
+            publicRaw: publicData.meanApplicationRateOfClass!,
+            privateRaw: privateData.meanApplicationRateOfClass ?? 0,
+            higherIsBetter: true,
+          },
+          {
+            label: "Mean Accept Rate of Class",
+            publicValue: formatPercent(publicData.meanAcceptanceRateOfClass ?? 0),
+            privateValue: formatPercent(privateData.meanAcceptanceRateOfClass ?? 0),
+            publicRaw: publicData.meanAcceptanceRateOfClass ?? 0,
+            privateRaw: privateData.meanAcceptanceRateOfClass ?? 0,
+            higherIsBetter: true,
+          },
+          {
+            label: "Mean Enroll Rate of Class",
+            publicValue: formatPercent(publicData.meanEnrollmentRateOfClass ?? 0),
+            privateValue: formatPercent(privateData.meanEnrollmentRateOfClass ?? 0),
+            publicRaw: publicData.meanEnrollmentRateOfClass ?? 0,
+            privateRaw: privateData.meanEnrollmentRateOfClass ?? 0,
+            higherIsBetter: true,
+          },
+        ]
+      : []),
     {
       label: "Mean GPA",
       publicValue: formatGpa(publicData.meanGpa),
