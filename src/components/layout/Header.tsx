@@ -72,6 +72,15 @@ export default function Header() {
             Public vs. Private
           </NavLink>
           <NavLink
+            to="/equity"
+            className={({ isActive }) =>
+              `header-nav-link${isActive ? " active" : ""}`
+            }
+            onClick={closeMenu}
+          >
+            Equity
+          </NavLink>
+          <NavLink
             to="/data-quality"
             className={({ isActive }) =>
               `header-nav-link${isActive ? " active" : ""}`

@@ -7,6 +7,7 @@ import ComparisonPage from "./pages/ComparisonPage.tsx";
 import SchoolVsSchoolPage from "./pages/SchoolVsSchoolPage.tsx";
 import MultiComparePage from "./pages/MultiComparePage.tsx";
 import DataQualityPage from "./pages/DataQualityPage.tsx";
+import EquityAnalysisPage from "./pages/EquityAnalysisPage.tsx";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -39,6 +40,7 @@ function App() {
             element={<SchoolVsSchoolPage />}
           />
           <Route path="/multi-compare" element={<MultiComparePage />} />
+          <Route path="/equity" element={<EquityAnalysisPage />} />
           <Route path="/data-quality" element={<DataQualityPage />} />
         </Routes>
       </Layout>
