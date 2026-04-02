@@ -19,6 +19,7 @@ import * as path from "node:path";
 import type {
   School,
   SchoolIndex,
+  SchoolQuality,
   CampusData,
   CampusSlug,
   SummaryData,
@@ -80,8 +81,12 @@ export interface GenerateResult {
 /**
  * Build the school index from computed records.
  * Deduplicates schools and aggregates available years.
+ * Optionally attaches CDE quality metrics when a qualityMap is provided.
  */
-export function buildSchoolIndex(records: ComputedRecord[]): SchoolIndex {
+export function buildSchoolIndex(
+  records: ComputedRecord[],
+  qualityMap?: Map<string, SchoolQuality>,
+): SchoolIndex {
   const schoolMap = new Map<
     string,
     {
@@ -126,18 +131,25 @@ export function buildSchoolIndex(records: ComputedRecord[]): SchoolIndex {
   }
 
   const schools: School[] = Array.from(schoolMap.values())
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      type: s.type,
-      county: s.county,
-      city: s.city,
-      ucName: s.ucName,
-      matched: s.matched,
-      matchMethod: s.matchMethod,
-      yearsAvailable: [...s.years].sort((a, b) => a - b),
-      grade12Enrollment: s.grade12Enrollment,
-    }))
+    .map((s) => {
+      const school: School = {
+        id: s.id,
+        name: s.name,
+        type: s.type,
+        county: s.county,
+        city: s.city,
+        ucName: s.ucName,
+        matched: s.matched,
+        matchMethod: s.matchMethod,
+        yearsAvailable: [...s.years].sort((a, b) => a - b),
+        grade12Enrollment: s.grade12Enrollment,
+      };
+      const quality = qualityMap?.get(s.id);
+      if (quality) {
+        school.quality = quality;
+      }
+      return school;
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return {
@@ -235,11 +247,13 @@ export function buildSummaryData(summaries: CampusSummary[]): SummaryData {
  *
  * @param metricsResult - Output from the compute-metrics step
  * @param outputDir - Directory to write JSON files to (created if not exists)
+ * @param qualityMap - Optional map of CDS code to SchoolQuality metrics
  * @returns Metadata about the generated files
  */
 export function generateJsonFiles(
   metricsResult: MetricsResult,
   outputDir: string,
+  qualityMap?: Map<string, SchoolQuality>,
 ): GenerateResult {
   // Ensure output directory exists
   fs.mkdirSync(outputDir, { recursive: true });
@@ -248,7 +262,7 @@ export function generateJsonFiles(
   let totalRecords = 0;
 
   // 1. Build and write school-index.json
-  const schoolIndex = buildSchoolIndex(metricsResult.records);
+  const schoolIndex = buildSchoolIndex(metricsResult.records, qualityMap);
   const schoolIndexPath = path.join(outputDir, "school-index.json");
   fs.writeFileSync(schoolIndexPath, JSON.stringify(schoolIndex, null, 2));
   filesWritten.push(schoolIndexPath);

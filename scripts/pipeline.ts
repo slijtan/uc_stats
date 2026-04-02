@@ -36,6 +36,7 @@ import {
 import type { EnrollmentMap } from "./transform/normalize-schools.ts";
 import { computePipelineMetrics } from "./transform/compute-metrics.ts";
 import { generateJsonFiles } from "./transform/generate-json.ts";
+import { loadCdeQualityData } from "./extract/parse-cde-quality.ts";
 import {
   generateDataQualityReport,
   writeReport,
@@ -188,6 +189,21 @@ export async function runPipeline(
   );
 
   // -----------------------------------------------------------------------
+  // Stage 2b: Load CDE quality data
+  // -----------------------------------------------------------------------
+  console.log("\n=== Stage 2b: Loading CDE quality data ===");
+
+  let qualityMap = new Map<string, import("../src/types/index.ts").SchoolQuality>();
+  try {
+    qualityMap = loadCdeQualityData(cdeDir);
+    console.log(`  Loaded quality data for ${qualityMap.size} schools`);
+  } catch (err) {
+    console.log(
+      `  Warning: Could not load CDE quality data: ${err instanceof Error ? err.message : String(err)}. Proceeding without quality metrics.`,
+    );
+  }
+
+  // -----------------------------------------------------------------------
   // Stage 3: Compute metrics
   // -----------------------------------------------------------------------
   console.log("\n=== Stage 3: Computing metrics ===");
@@ -205,7 +221,7 @@ export async function runPipeline(
   console.log("\n=== Stage 4: Generating JSON files ===");
   console.log(`  Output directory: ${outputDir}`);
 
-  const generateResult = generateJsonFiles(metricsResult, outputDir);
+  const generateResult = generateJsonFiles(metricsResult, outputDir, qualityMap);
 
   console.log(`  Written ${generateResult.filesWritten.length} files:`);
   for (const file of generateResult.filesWritten) {
