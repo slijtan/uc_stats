@@ -49,6 +49,48 @@ export interface School {
   yearsAvailable: number[];
   /** Grade 12 enrollment by year from CDE data. Key is UC admissions year (string). */
   grade12Enrollment: Record<string, number>;
+  /** School quality metrics from CDE/external data sources */
+  quality?: SchoolQuality;
+}
+
+/** School quality and accountability metrics from CDE and external data sources */
+export interface SchoolQuality {
+  /** College/Career Indicator (CCI) percentage prepared */
+  cci?: number;
+  /** CCI percentage approaching prepared */
+  cciApproaching?: number;
+  /** CCI percentage not prepared */
+  cciNotPrepared?: number;
+  /** CAASPP ELA average scale score */
+  caasppEla?: number;
+  /** CAASPP Math average scale score */
+  caasppMath?: number;
+  /** CAASPP ELA percent meeting or exceeding standard */
+  caasppElaPctMet?: number;
+  /** CAASPP Math percent meeting or exceeding standard */
+  caasppMathPctMet?: number;
+  /** Graduation rate (percentage) */
+  gradRate?: number;
+  /** A-G completion rate (percentage) */
+  agRate?: number;
+  /** Dropout rate (percentage) */
+  dropoutRate?: number;
+  /** College-going rate (percentage) */
+  collegeGoingRate?: number;
+  /** College-going rate to UC (percentage) */
+  collegeGoingUC?: number;
+  /** College-going rate to CSU (percentage) */
+  collegeGoingCSU?: number;
+  /** Chronic absenteeism rate (percentage) */
+  chronicAbsentRate?: number;
+  /** Suspension rate (percentage) */
+  suspensionRate?: number;
+  /** SchoolDigger rank (state-level) */
+  schoolDiggerRank?: number;
+  /** SchoolDigger star rating (1–5) */
+  schoolDiggerStars?: number;
+  /** Year the quality data corresponds to */
+  dataYear?: number;
 }
 
 /** The school index file structure */
