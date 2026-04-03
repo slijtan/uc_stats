@@ -26,6 +26,8 @@ import {
   computeEquityGap,
 } from "../services/statsService.ts";
 import type { Point } from "../services/statsService.ts";
+import MetricTooltip from "../components/common/MetricTooltip.tsx";
+import type { MetricKey } from "../components/common/MetricTooltip.tsx";
 
 // ============================================================
 // Constants
@@ -46,17 +48,18 @@ const CAMPUS_OPTIONS: { value: CampusSlug; label: string }[] = [
 
 const X_AXES: Record<string, {
   label: string;
+  metricKey: MetricKey;
   get: (s: School) => number | undefined;
   fmt: (v: number) => string;
 }> = {
-  cci: { label: "CCI % Prepared", get: (s) => s.quality?.cci, fmt: (v) => `${v.toFixed(1)}%` },
-  caasppEla: { label: "CAASPP ELA", get: (s) => s.quality?.caasppEla, fmt: (v) => v.toFixed(1) },
-  caasppMath: { label: "CAASPP Math", get: (s) => s.quality?.caasppMath, fmt: (v) => v.toFixed(1) },
-  gradRate: { label: "Graduation Rate", get: (s) => s.quality?.gradRate, fmt: (v) => `${v.toFixed(1)}%` },
-  agRate: { label: "A-G Completion %", get: (s) => s.quality?.agRate, fmt: (v) => `${v.toFixed(1)}%` },
-  collegeGoing: { label: "College-Going Rate", get: (s) => s.quality?.collegeGoingRate, fmt: (v) => `${v.toFixed(1)}%` },
-  chronicAbsent: { label: "Chronic Absenteeism", get: (s) => s.quality?.chronicAbsentRate, fmt: (v) => `${v.toFixed(1)}%` },
-  suspension: { label: "Suspension Rate", get: (s) => s.quality?.suspensionRate, fmt: (v) => `${v.toFixed(1)}%` },
+  cci: { label: "CCI % Prepared", metricKey: "cci", get: (s) => s.quality?.cci, fmt: (v) => `${v.toFixed(1)}%` },
+  caasppEla: { label: "CAASPP ELA", metricKey: "caasppEla", get: (s) => s.quality?.caasppEla, fmt: (v) => v.toFixed(1) },
+  caasppMath: { label: "CAASPP Math", metricKey: "caasppMath", get: (s) => s.quality?.caasppMath, fmt: (v) => v.toFixed(1) },
+  gradRate: { label: "Graduation Rate", metricKey: "gradRate", get: (s) => s.quality?.gradRate, fmt: (v) => `${v.toFixed(1)}%` },
+  agRate: { label: "A-G Completion %", metricKey: "agRate", get: (s) => s.quality?.agRate, fmt: (v) => `${v.toFixed(1)}%` },
+  collegeGoing: { label: "College-Going Rate", metricKey: "collegeGoingRate", get: (s) => s.quality?.collegeGoingRate, fmt: (v) => `${v.toFixed(1)}%` },
+  chronicAbsent: { label: "Chronic Absenteeism", metricKey: "chronicAbsentRate", get: (s) => s.quality?.chronicAbsentRate, fmt: (v) => `${v.toFixed(1)}%` },
+  suspension: { label: "Suspension Rate", metricKey: "suspensionRate", get: (s) => s.quality?.suspensionRate, fmt: (v) => `${v.toFixed(1)}%` },
 };
 
 const Y_AXES: Record<string, {
@@ -404,7 +407,10 @@ export default function EquityAnalysisPage() {
           style={{ flexWrap: "wrap", gap: "var(--space-3)" }}
         >
           <div className="filter-field">
-            <label className="filter-label" htmlFor="eq-x-axis">X-Axis</label>
+            <label className="filter-label" htmlFor="eq-x-axis">
+              X-Axis
+              <MetricTooltip metricKey={xAxis.metricKey} />
+            </label>
             <select
               id="eq-x-axis"
               className="filter-select"
@@ -548,7 +554,11 @@ export default function EquityAnalysisPage() {
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-6)", fontSize: "var(--font-size-sm)" }}>
             <div>
-              <span style={{ color: "var(--color-text-secondary)" }}>{xAxis.label}: </span>
+              <span style={{ color: "var(--color-text-secondary)" }}>
+                {xAxis.label}
+                <MetricTooltip metricKey={xAxis.metricKey} />
+                {": "}
+              </span>
               <strong>{xAxis.fmt(selectedPoint.x)}</strong>
             </div>
             <div>
@@ -557,13 +567,21 @@ export default function EquityAnalysisPage() {
             </div>
             {selectedSchool.quality?.gradRate != null && (
               <div>
-                <span style={{ color: "var(--color-text-secondary)" }}>Grad Rate: </span>
+                <span style={{ color: "var(--color-text-secondary)" }}>
+                  Grad Rate
+                  <MetricTooltip metricKey="gradRate" />
+                  {": "}
+                </span>
                 <strong>{selectedSchool.quality.gradRate.toFixed(1)}%</strong>
               </div>
             )}
             {selectedSchool.quality?.agRate != null && (
               <div>
-                <span style={{ color: "var(--color-text-secondary)" }}>A-G Rate: </span>
+                <span style={{ color: "var(--color-text-secondary)" }}>
+                  A-G Rate
+                  <MetricTooltip metricKey="agRate" />
+                  {": "}
+                </span>
                 <strong>{selectedSchool.quality.agRate.toFixed(1)}%</strong>
               </div>
             )}
@@ -758,7 +776,7 @@ export default function EquityAnalysisPage() {
             lineHeight: 1.6,
           }}
         >
-          Schools in the <strong>top quartile</strong> of {xAxis.label} have{" "}
+          Schools in the <strong>top quartile</strong> of {xAxis.label}<MetricTooltip metricKey={xAxis.metricKey} /> have{" "}
           <strong>{equityGap.gap.toFixed(1)}x {equityGap.gap >= 1 ? "higher" : "lower"}</strong>{" "}
           {yAxis.label} at {campusLabel} than bottom quartile schools.
           The relationship is <strong>{correlation.label.toLowerCase()}</strong>.
@@ -770,7 +788,7 @@ export default function EquityAnalysisPage() {
         <section className="section">
           <h2 className="section-title">Quartile Breakdown</h2>
           <p className="section-description">
-            Schools sorted by {xAxis.label}, split into four equal groups. Bars show average {yAxis.label} per group.
+            Schools sorted by {xAxis.label}<MetricTooltip metricKey={xAxis.metricKey} />, split into four equal groups. Bars show average {yAxis.label} per group.
           </p>
           <div
             style={{

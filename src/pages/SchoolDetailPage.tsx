@@ -27,6 +27,15 @@ import type {
 } from "../components/charts/TrendLine.tsx";
 import SchoolTable from "../components/tables/SchoolTable.tsx";
 import MethodologyNote from "../components/common/MethodologyNote.tsx";
+import MetricTooltip from "../components/common/MetricTooltip.tsx";
+import type { MetricKey } from "../components/common/MetricTooltip.tsx";
+
+/** Format a number with ordinal suffix (1st, 2nd, 3rd, etc.) */
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0])!;
+}
 
 /** All campus slugs including systemwide */
 const ALL_CAMPUSES: CampusSlug[] = [
@@ -102,6 +111,41 @@ export default function SchoolDetailPage() {
     if (!schoolIndex || !schoolId) return null;
     return schoolIndex.schools.find((s) => s.id === schoolId) ?? null;
   }, [schoolIndex, schoolId]);
+
+  // Compute percentile ranks for quality metrics across all schools
+  const qualityPercentiles = useMemo(() => {
+    if (!schoolIndex || !school?.quality) return new Map<MetricKey, number>();
+
+    type QualityGetter = { key: MetricKey; get: (s: School) => number | undefined; reverse?: boolean };
+    const metrics: QualityGetter[] = [
+      { key: "cci", get: (s) => s.quality?.cci },
+      { key: "caasppElaPctMet", get: (s) => s.quality?.caasppElaPctMet },
+      { key: "caasppMathPctMet", get: (s) => s.quality?.caasppMathPctMet },
+      { key: "gradRate", get: (s) => s.quality?.gradRate },
+      { key: "agRate", get: (s) => s.quality?.agRate },
+      { key: "collegeGoingRate", get: (s) => s.quality?.collegeGoingRate },
+      { key: "chronicAbsentRate", get: (s) => s.quality?.chronicAbsentRate, reverse: true },
+      { key: "suspensionRate", get: (s) => s.quality?.suspensionRate, reverse: true },
+    ];
+
+    const result = new Map<MetricKey, number>();
+    for (const m of metrics) {
+      const schoolVal = m.get(school);
+      if (schoolVal == null) continue;
+
+      const allValues = schoolIndex.schools
+        .map((s) => m.get(s))
+        .filter((v): v is number => v != null);
+      if (allValues.length < 2) continue;
+
+      // For "reverse" metrics (lower is better), count how many are WORSE (higher)
+      const countBelow = m.reverse
+        ? allValues.filter((v) => v > schoolVal).length
+        : allValues.filter((v) => v < schoolVal).length;
+      result.set(m.key, Math.round((countBelow / (allValues.length - 1)) * 100));
+    }
+    return result;
+  }, [schoolIndex, school]);
 
   // Load school index on mount
   useEffect(() => {
@@ -825,6 +869,57 @@ export default function SchoolDetailPage() {
             {school.yearsAvailable.length !== 1 ? "s" : ""} (
             {Math.min(...school.yearsAvailable)}&ndash;
             {Math.max(...school.yearsAvailable)})
+          </p>
+        )}
+      </section>
+
+      {/* School Quality Metrics */}
+      <section className="section" aria-label="School quality metrics">
+        <h2 className="section-title">School Quality Metrics</h2>
+        {school.quality ? (
+          <div className="quality-grid">
+            {(
+              [
+                { key: "cci" as MetricKey, label: "CCI % Prepared", value: school.quality.cci, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "caasppElaPctMet" as MetricKey, label: "CAASPP ELA % Met", value: school.quality.caasppElaPctMet, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "caasppMathPctMet" as MetricKey, label: "CAASPP Math % Met", value: school.quality.caasppMathPctMet, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "gradRate" as MetricKey, label: "Graduation Rate", value: school.quality.gradRate, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "agRate" as MetricKey, label: "A-G Completion", value: school.quality.agRate, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "collegeGoingRate" as MetricKey, label: "College-Going Rate", value: school.quality.collegeGoingRate, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "chronicAbsentRate" as MetricKey, label: "Chronic Absenteeism", value: school.quality.chronicAbsentRate, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "suspensionRate" as MetricKey, label: "Suspension Rate", value: school.quality.suspensionRate, fmt: (v: number) => `${v.toFixed(1)}%` },
+              ] as const
+            )
+              .filter((m) => m.value != null)
+              .map((m) => {
+                const pct = qualityPercentiles.get(m.key);
+                return (
+                  <div className="quality-card" key={m.key}>
+                    <div className="quality-label">
+                      {m.label}
+                      <MetricTooltip metricKey={m.key} />
+                    </div>
+                    <div className="quality-value">{m.fmt(m.value!)}</div>
+                    {pct != null && (
+                      <>
+                        <div className="quality-percentile">
+                          {pct === 100 ? "Top" : pct >= 90 ? "Top 10%" : pct >= 75 ? "Top 25%" : pct >= 50 ? "Top half" : pct >= 25 ? "Bottom half" : pct >= 10 ? "Bottom 25%" : "Bottom 10%"}
+                          {" "}({ordinal(pct)} percentile)
+                        </div>
+                        <div className="quality-percentile-bar">
+                          <div className="quality-percentile-fill" style={{ width: `${pct}%` }} />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <p className="no-data-message">
+            {school.type === "private"
+              ? "No state performance data available for private schools."
+              : "No quality data available for this school."}
           </p>
         )}
       </section>

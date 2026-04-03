@@ -174,7 +174,10 @@ type SortKey =
   | "enrollees"
   | "yield"
   | "enrollmentRateOfClass"
-  | "gpa";
+  | "gpa"
+  | "cci";
+
+type QualityTier = "all" | "top25" | "top50" | "bottom50" | "bottom25";
 
 type SortDirection = "asc" | "desc";
 
@@ -375,6 +378,7 @@ export default function ByCollegePage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [schoolTypeFilter, setSchoolTypeFilter] = useState<"all" | "public" | "private">("all");
   const [countyFilter, setCountyFilter] = useState<string | null>(null);
+  const [qualityTier, setQualityTier] = useState<QualityTier>("all");
 
   // Available counties from school index
   const availableCounties = useMemo(() => {
@@ -382,6 +386,23 @@ export default function ByCollegePage() {
     const countySet = new Set(schoolIndex.schools.map((s) => s.county));
     return Array.from(countySet);
   }, [schoolIndex]);
+
+  // Compute CCI quartile thresholds for quality tier filter
+  const cciThresholds = useMemo(() => {
+    const cciValues = aggregatedRows
+      .map((r) => r.school.quality?.cci)
+      .filter((v): v is number => v != null)
+      .sort((a, b) => a - b);
+    if (cciValues.length < 4) return { p25: 0, p50: 0, p75: 0 };
+    const p = (pct: number) => {
+      const idx = pct * (cciValues.length - 1);
+      const lo = Math.floor(idx);
+      const hi = Math.ceil(idx);
+      if (lo === hi) return cciValues[lo]!;
+      return cciValues[lo]! + (cciValues[hi]! - cciValues[lo]!) * (idx - lo);
+    };
+    return { p25: p(0.25), p50: p(0.5), p75: p(0.75) };
+  }, [aggregatedRows]);
 
   // Debounce search input
   useEffect(() => {
@@ -431,13 +452,26 @@ export default function ByCollegePage() {
     [sortKey],
   );
 
-  // Filter by school type and county, then sort and assign rank numbers
+  // Filter by school type, county, and quality tier, then sort and assign rank numbers
   const rankedRows = useMemo(() => {
     let filtered = schoolTypeFilter === "all"
       ? aggregatedRows
       : aggregatedRows.filter((row) => row.school.type === schoolTypeFilter);
     if (countyFilter) {
       filtered = filtered.filter((row) => row.school.county === countyFilter);
+    }
+    if (qualityTier !== "all") {
+      filtered = filtered.filter((row) => {
+        const cci = row.school.quality?.cci;
+        if (cci == null) return false;
+        switch (qualityTier) {
+          case "top25": return cci >= cciThresholds.p75;
+          case "top50": return cci >= cciThresholds.p50;
+          case "bottom50": return cci < cciThresholds.p50;
+          case "bottom25": return cci < cciThresholds.p25;
+          default: return true;
+        }
+      });
     }
     const sorted = [...filtered];
     const dir = sortDirection === "asc" ? 1 : -1;
@@ -470,13 +504,15 @@ export default function ByCollegePage() {
           return dir * (nullSafeNumber(a.enrollmentRateOfClass, sortDirection) - nullSafeNumber(b.enrollmentRateOfClass, sortDirection));
         case "gpa":
           return dir * (nullSafeNumber(a.gpaApplicants, sortDirection) - nullSafeNumber(b.gpaApplicants, sortDirection));
+        case "cci":
+          return dir * (nullSafeNumber(a.school.quality?.cci ?? null, sortDirection) - nullSafeNumber(b.school.quality?.cci ?? null, sortDirection));
         default:
           return 0;
       }
     });
 
     return sorted.map((row, index) => ({ ...row, rank: index + 1 }));
-  }, [aggregatedRows, sortKey, sortDirection, schoolTypeFilter, countyFilter]);
+  }, [aggregatedRows, sortKey, sortDirection, schoolTypeFilter, countyFilter, qualityTier, cciThresholds]);
 
   // Filter ranked rows by search — rank numbers reflect the type-filtered set
   const displayRows = useMemo(() => {
@@ -598,6 +634,20 @@ export default function ByCollegePage() {
           onChange={setCountyFilter}
           counties={availableCounties}
         />
+        <div className="filter-field">
+          <select
+            className="filter-select"
+            value={qualityTier}
+            onChange={(e) => setQualityTier(e.target.value as QualityTier)}
+            aria-label="Filter by quality tier"
+          >
+            <option value="all">All Quality</option>
+            <option value="top25">Top 25% CCI</option>
+            <option value="top50">Top 50% CCI</option>
+            <option value="bottom50">Bottom 50% CCI</option>
+            <option value="bottom25">Bottom 25% CCI</option>
+          </select>
+        </div>
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           {displayRows.length !== rankedRows.length
             ? `Showing ${displayRows.length} of ${rankedRows.length} schools`
@@ -627,6 +677,7 @@ export default function ByCollegePage() {
               {renderSortHeader("yield", "Enroll Rate", "right")}
               {renderSortHeader("enrollmentRateOfClass", "Enroll % of Class", "right")}
               {renderSortHeader("gpa", "Mean GPA", "right")}
+              {renderSortHeader("cci", "CCI", "right")}
             </tr>
           </thead>
           <tbody>
@@ -683,6 +734,9 @@ export default function ByCollegePage() {
                 </td>
                 <td className={`numeric${row.gpaApplicants === null ? " null-value" : ""}`}>
                   {renderValue(formatGpa(row.gpaApplicants), row.gpaApplicants === null)}
+                </td>
+                <td className={`numeric${row.school.quality?.cci == null ? " null-value" : ""}`}>
+                  {row.school.quality?.cci != null ? row.school.quality.cci.toFixed(1) : "—"}
                 </td>
               </tr>
             ))}
@@ -741,6 +795,10 @@ export default function ByCollegePage() {
               <div className="bc-card-metric">
                 <span className="bc-card-metric-label">GPA</span>
                 <span className="bc-card-metric-value">{row.gpaApplicants !== null ? formatGpa(row.gpaApplicants) : "—"}</span>
+              </div>
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">CCI</span>
+                <span className="bc-card-metric-value">{row.school.quality?.cci != null ? row.school.quality.cci.toFixed(1) : "—"}</span>
               </div>
             </div>
             <div className="bc-card-counts">
