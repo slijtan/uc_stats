@@ -521,6 +521,14 @@ export default function MultiComparePage() {
                   { label: "Enroll % of Class", values: snapshots.map((s) => s.enrollmentRateOfClass), format: "percent" },
                   { label: "GPA (Applicants)", values: snapshots.map((s) => s.gpaApplicants), format: "gpa" },
                   { label: "GPA (Admits)", values: snapshots.map((s) => s.gpaAdmits), format: "gpa" },
+                  { label: "CCI % Prepared", values: snapshots.map((s) => s.school.quality?.cci ?? null), format: "pctDirect" },
+                  { label: "Grad Rate", values: snapshots.map((s) => s.school.quality?.gradRate ?? null), format: "pctDirect" },
+                  { label: "A-G Completion", values: snapshots.map((s) => s.school.quality?.agRate ?? null), format: "pctDirect" },
+                  { label: "College-Going Rate", values: snapshots.map((s) => s.school.quality?.collegeGoingRate ?? null), format: "pctDirect" },
+                  { label: "FRPM %", values: snapshots.map((s) => s.school.quality?.freeReducedMealPct ?? null), format: "pctDirect" },
+                  { label: "AP Courses", values: snapshots.map((s) => s.school.quality?.apCoursesOffered ?? null), format: "number" },
+                  { label: "Chronic Absent", values: snapshots.map((s) => s.school.quality?.chronicAbsentRate ?? null), format: "pctDirect" },
+                  { label: "Suspension Rate", values: snapshots.map((s) => s.school.quality?.suspensionRate ?? null), format: "pctDirect" },
                 ] as { label: string; values: (string | number | null)[]; format: string }[]).map((row) => {
                   // Find best (highest numeric) value for bolding
                   const numericValues = row.values.map((v) =>
@@ -542,6 +550,8 @@ export default function MultiComparePage() {
                           formatted = val;
                         } else if (row.format === "percent") {
                           formatted = fmtPct(val);
+                        } else if (row.format === "pctDirect") {
+                          formatted = val !== null ? `${val.toFixed(1)}%` : "";
                         } else if (row.format === "gpa") {
                           formatted = fmtGpa(val);
                         } else {

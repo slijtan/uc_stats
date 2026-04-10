@@ -466,6 +466,50 @@ export default function SchoolVsSchoolPage() {
         )}
       </section>
 
+      {/* Quality Metrics Comparison */}
+      {(school1.quality || school2.quality) && (
+        <section className="section" aria-label="Quality metrics comparison">
+          <h2 className="section-title">School Quality Comparison</h2>
+          <div className="data-table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th style={{ textAlign: "right" }}>{school1.name}</th>
+                  <th style={{ textAlign: "right" }}>{school2.name}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {([
+                  { label: "CCI % Prepared", v1: school1.quality?.cci, v2: school2.quality?.cci },
+                  { label: "Graduation Rate", v1: school1.quality?.gradRate, v2: school2.quality?.gradRate },
+                  { label: "A-G Completion", v1: school1.quality?.agRate, v2: school2.quality?.agRate },
+                  { label: "College-Going Rate", v1: school1.quality?.collegeGoingRate, v2: school2.quality?.collegeGoingRate },
+                  { label: "CAASPP ELA % Met", v1: school1.quality?.caasppElaPctMet, v2: school2.quality?.caasppElaPctMet },
+                  { label: "CAASPP Math % Met", v1: school1.quality?.caasppMathPctMet, v2: school2.quality?.caasppMathPctMet },
+                  { label: "FRPM %", v1: school1.quality?.freeReducedMealPct, v2: school2.quality?.freeReducedMealPct },
+                  { label: "AP Courses", v1: school1.quality?.apCoursesOffered, v2: school2.quality?.apCoursesOffered, isCount: true },
+                  { label: "Chronic Absenteeism", v1: school1.quality?.chronicAbsentRate, v2: school2.quality?.chronicAbsentRate },
+                  { label: "Suspension Rate", v1: school1.quality?.suspensionRate, v2: school2.quality?.suspensionRate },
+                ] as { label: string; v1?: number; v2?: number; isCount?: boolean }[])
+                  .filter((row) => row.v1 != null || row.v2 != null)
+                  .map((row) => (
+                    <tr key={row.label}>
+                      <td style={{ fontWeight: 500 }}>{row.label}</td>
+                      <td className={`numeric${row.v1 == null ? " null-value" : ""}`}>
+                        {row.v1 != null ? (row.isCount ? String(row.v1) : `${row.v1.toFixed(1)}%`) : "\u2014"}
+                      </td>
+                      <td className={`numeric${row.v2 == null ? " null-value" : ""}`}>
+                        {row.v2 != null ? (row.isCount ? String(row.v2) : `${row.v2.toFixed(1)}%`) : "\u2014"}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {/* Comparison Table */}
       <section className="section" aria-label="Campus-by-campus comparison">
         <h2 className="section-title">
