@@ -12,7 +12,12 @@ export type MetricKey =
   | "dropoutRate"
   | "collegeGoingRate"
   | "chronicAbsentRate"
-  | "suspensionRate";
+  | "suspensionRate"
+  | "freeReducedMealPct"
+  | "apCoursesOffered"
+  | "collegeGoingCCC"
+  | "collegeGoingInStatePrivate"
+  | "collegeGoingOutOfState";
 
 interface MetricInfo {
   label: string;
@@ -97,6 +102,41 @@ export const METRIC_INFO: Record<MetricKey, MetricInfo> = {
       "Percentage of students suspended at least once during the academic year. A CA Dashboard school climate indicator.",
     interpretation:
       "Lower is better. The statewide average is around 4%. High rates may indicate discipline issues or over-policing.",
+  },
+  freeReducedMealPct: {
+    label: "Free/Reduced-Price Meals",
+    description:
+      "Percentage of K-12 students eligible for free or reduced-price meals under the National School Lunch Program. A widely used proxy for school-level poverty.",
+    interpretation:
+      "Context metric — not better or worse. High-poverty schools (>75%) face more challenges; low-poverty (<25%) have more resources. Statewide average is around 60%.",
+  },
+  apCoursesOffered: {
+    label: "AP Courses Offered",
+    description:
+      "Number of distinct Advanced Placement courses offered at the school, from CRDC 2020-21 data. Measures curricular access, not participation.",
+    interpretation:
+      "More AP courses indicate broader college-prep access. Top schools offer 20+; many schools offer fewer than 10. Zero means the school has no AP program.",
+  },
+  collegeGoingCCC: {
+    label: "Enrolled in CCC",
+    description:
+      "Percentage of high school completers who enrolled in a California Community College within 12 months of graduation.",
+    interpretation:
+      "Context metric. A higher rate may indicate fewer students go directly to 4-year universities.",
+  },
+  collegeGoingInStatePrivate: {
+    label: "In-State Private",
+    description:
+      "Percentage of high school completers who enrolled in an in-state private 2- or 4-year institution within 12 months.",
+    interpretation:
+      "Higher rates may indicate access to selective private colleges (Stanford, USC, etc.).",
+  },
+  collegeGoingOutOfState: {
+    label: "Out-of-State",
+    description:
+      "Percentage of high school completers who enrolled in an out-of-state institution within 12 months.",
+    interpretation:
+      "Higher rates may indicate students pursuing selective colleges nationally.",
   },
 };
 

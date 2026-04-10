@@ -60,6 +60,18 @@ const X_AXES: Record<string, {
   collegeGoing: { label: "College-Going Rate", metricKey: "collegeGoingRate", get: (s) => s.quality?.collegeGoingRate, fmt: (v) => `${v.toFixed(1)}%` },
   chronicAbsent: { label: "Chronic Absenteeism", metricKey: "chronicAbsentRate", get: (s) => s.quality?.chronicAbsentRate, fmt: (v) => `${v.toFixed(1)}%` },
   suspension: { label: "Suspension Rate", metricKey: "suspensionRate", get: (s) => s.quality?.suspensionRate, fmt: (v) => `${v.toFixed(1)}%` },
+  frpm: {
+    label: "Free/Reduced Meals %",
+    metricKey: "freeReducedMealPct",
+    get: (s) => s.quality?.freeReducedMealPct,
+    fmt: (v) => `${v.toFixed(1)}%`,
+  },
+  apCourses: {
+    label: "AP Courses Offered",
+    metricKey: "apCoursesOffered",
+    get: (s) => s.quality?.apCoursesOffered,
+    fmt: (v) => String(Math.round(v)),
+  },
 };
 
 const Y_AXES: Record<string, {

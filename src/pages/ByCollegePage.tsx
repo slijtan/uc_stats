@@ -175,9 +175,12 @@ type SortKey =
   | "yield"
   | "enrollmentRateOfClass"
   | "gpa"
-  | "cci";
+  | "cci"
+  | "frpm";
 
 type QualityTier = "all" | "top25" | "top50" | "bottom50" | "bottom25";
+
+type PovertyTier = "all" | "high75" | "high50" | "low50" | "low25";
 
 type SortDirection = "asc" | "desc";
 
@@ -379,6 +382,7 @@ export default function ByCollegePage() {
   const [schoolTypeFilter, setSchoolTypeFilter] = useState<"all" | "public" | "private">("all");
   const [countyFilter, setCountyFilter] = useState<string | null>(null);
   const [qualityTier, setQualityTier] = useState<QualityTier>("all");
+  const [povertyTier, setPovertyTier] = useState<PovertyTier>("all");
 
   // Available counties from school index
   const availableCounties = useMemo(() => {
@@ -400,6 +404,23 @@ export default function ByCollegePage() {
       const hi = Math.ceil(idx);
       if (lo === hi) return cciValues[lo]!;
       return cciValues[lo]! + (cciValues[hi]! - cciValues[lo]!) * (idx - lo);
+    };
+    return { p25: p(0.25), p50: p(0.5), p75: p(0.75) };
+  }, [aggregatedRows]);
+
+  // Compute FRPM quartile thresholds for poverty tier filter
+  const frpmThresholds = useMemo(() => {
+    const vals = aggregatedRows
+      .map((r) => r.school.quality?.freeReducedMealPct)
+      .filter((v): v is number => v != null)
+      .sort((a, b) => a - b);
+    if (vals.length < 4) return { p25: 0, p50: 0, p75: 0 };
+    const p = (pct: number) => {
+      const idx = pct * (vals.length - 1);
+      const lo = Math.floor(idx);
+      const hi = Math.ceil(idx);
+      if (lo === hi) return vals[lo]!;
+      return vals[lo]! + (vals[hi]! - vals[lo]!) * (idx - lo);
     };
     return { p25: p(0.25), p50: p(0.5), p75: p(0.75) };
   }, [aggregatedRows]);
@@ -473,6 +494,19 @@ export default function ByCollegePage() {
         }
       });
     }
+    if (povertyTier !== "all") {
+      filtered = filtered.filter((row) => {
+        const frpm = row.school.quality?.freeReducedMealPct;
+        if (frpm == null) return false;
+        switch (povertyTier) {
+          case "high75": return frpm >= frpmThresholds.p75;
+          case "high50": return frpm >= frpmThresholds.p50;
+          case "low50": return frpm < frpmThresholds.p50;
+          case "low25": return frpm < frpmThresholds.p25;
+          default: return true;
+        }
+      });
+    }
     const sorted = [...filtered];
     const dir = sortDirection === "asc" ? 1 : -1;
 
@@ -506,13 +540,15 @@ export default function ByCollegePage() {
           return dir * (nullSafeNumber(a.gpaApplicants, sortDirection) - nullSafeNumber(b.gpaApplicants, sortDirection));
         case "cci":
           return dir * (nullSafeNumber(a.school.quality?.cci ?? null, sortDirection) - nullSafeNumber(b.school.quality?.cci ?? null, sortDirection));
+        case "frpm":
+          return dir * (nullSafeNumber(a.school.quality?.freeReducedMealPct ?? null, sortDirection) - nullSafeNumber(b.school.quality?.freeReducedMealPct ?? null, sortDirection));
         default:
           return 0;
       }
     });
 
     return sorted.map((row, index) => ({ ...row, rank: index + 1 }));
-  }, [aggregatedRows, sortKey, sortDirection, schoolTypeFilter, countyFilter, qualityTier, cciThresholds]);
+  }, [aggregatedRows, sortKey, sortDirection, schoolTypeFilter, countyFilter, qualityTier, cciThresholds, povertyTier, frpmThresholds]);
 
   // Filter ranked rows by search — rank numbers reflect the type-filtered set
   const displayRows = useMemo(() => {
@@ -648,6 +684,20 @@ export default function ByCollegePage() {
             <option value="bottom25">Bottom 25% CCI</option>
           </select>
         </div>
+        <div className="filter-field">
+          <select
+            className="filter-select"
+            value={povertyTier}
+            onChange={(e) => setPovertyTier(e.target.value as PovertyTier)}
+            aria-label="Filter by poverty level"
+          >
+            <option value="all">All Poverty</option>
+            <option value="high75">High Poverty (Top 25%)</option>
+            <option value="high50">High Poverty (Top 50%)</option>
+            <option value="low50">Low Poverty (Bottom 50%)</option>
+            <option value="low25">Low Poverty (Bottom 25%)</option>
+          </select>
+        </div>
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           {displayRows.length !== rankedRows.length
             ? `Showing ${displayRows.length} of ${rankedRows.length} schools`
@@ -678,6 +728,7 @@ export default function ByCollegePage() {
               {renderSortHeader("enrollmentRateOfClass", "Enroll % of Class", "right")}
               {renderSortHeader("gpa", "Mean GPA", "right")}
               {renderSortHeader("cci", "CCI", "right")}
+              {renderSortHeader("frpm", "FRPM%", "right")}
             </tr>
           </thead>
           <tbody>
@@ -737,6 +788,9 @@ export default function ByCollegePage() {
                 </td>
                 <td className={`numeric${row.school.quality?.cci == null ? " null-value" : ""}`}>
                   {row.school.quality?.cci != null ? row.school.quality.cci.toFixed(1) : "—"}
+                </td>
+                <td className={`numeric${row.school.quality?.freeReducedMealPct == null ? " null-value" : ""}`}>
+                  {row.school.quality?.freeReducedMealPct != null ? row.school.quality.freeReducedMealPct.toFixed(1) : "—"}
                 </td>
               </tr>
             ))}
@@ -799,6 +853,10 @@ export default function ByCollegePage() {
               <div className="bc-card-metric">
                 <span className="bc-card-metric-label">CCI</span>
                 <span className="bc-card-metric-value">{row.school.quality?.cci != null ? row.school.quality.cci.toFixed(1) : "—"}</span>
+              </div>
+              <div className="bc-card-metric">
+                <span className="bc-card-metric-label">FRPM%</span>
+                <span className="bc-card-metric-value">{row.school.quality?.freeReducedMealPct != null ? row.school.quality.freeReducedMealPct.toFixed(1) + "%" : "—"}</span>
               </div>
             </div>
             <div className="bc-card-counts">

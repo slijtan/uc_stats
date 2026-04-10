@@ -61,6 +61,20 @@ export interface SchoolQuality {
   cciApproaching?: number;
   /** CCI percentage not prepared */
   cciNotPrepared?: number;
+  /** CCI pathway: % of cohort prepared via AP exams */
+  cciPathwayAp?: number;
+  /** CCI pathway: % of cohort prepared via IB exams */
+  cciPathwayIb?: number;
+  /** CCI pathway: % of cohort prepared via dual/concurrent enrollment */
+  cciPathwayCollegeCredit?: number;
+  /** CCI pathway: % of cohort prepared via A-G completion */
+  cciPathwayAg?: number;
+  /** CCI pathway: % of cohort prepared via Career Technical Education */
+  cciPathwayCte?: number;
+  /** CCI pathway: % of cohort earning State Seal of Biliteracy */
+  cciPathwayBiliteracy?: number;
+  /** CCI pathway: % of cohort prepared via Military Science */
+  cciPathwayMilitary?: number;
   /** CAASPP ELA average scale score */
   caasppEla?: number;
   /** CAASPP Math average scale score */
@@ -81,14 +95,20 @@ export interface SchoolQuality {
   collegeGoingUC?: number;
   /** College-going rate to CSU (percentage) */
   collegeGoingCSU?: number;
+  /** College-going rate to CA Community Colleges (percentage) */
+  collegeGoingCCC?: number;
+  /** College-going rate to in-state private institutions (percentage) */
+  collegeGoingInStatePrivate?: number;
+  /** College-going rate to out-of-state institutions (percentage) */
+  collegeGoingOutOfState?: number;
   /** Chronic absenteeism rate (percentage) */
   chronicAbsentRate?: number;
   /** Suspension rate (percentage) */
   suspensionRate?: number;
-  /** SchoolDigger rank (state-level) */
-  schoolDiggerRank?: number;
-  /** SchoolDigger star rating (1–5) */
-  schoolDiggerStars?: number;
+  /** Percentage of students eligible for free/reduced-price meals */
+  freeReducedMealPct?: number;
+  /** Count of distinct AP courses offered (from CRDC) */
+  apCoursesOffered?: number;
   /** Year the quality data corresponds to */
   dataYear?: number;
 }

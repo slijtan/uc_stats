@@ -80,6 +80,27 @@ function findMostRecentTxt(dir: string): string | undefined {
   return files.length > 0 ? path.join(dir, files[0].name) : undefined;
 }
 
+/** Find the most recently modified .xlsx file in a directory */
+function findMostRecentXlsx(dir: string): string | undefined {
+  if (!fs.existsSync(dir)) return undefined;
+
+  const files = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".xlsx"))
+    .map((f) => ({
+      name: f,
+      mtime: fs.statSync(path.join(dir, f)).mtimeMs,
+    }))
+    .sort((a, b) => b.mtime - a.mtime);
+
+  return files.length > 0 ? path.join(dir, files[0].name) : undefined;
+}
+
+/** Normalize column name by stripping carriage returns, newlines, and extra whitespace */
+function normalizeColName(name: string): string {
+  return name.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 // ---------------------------------------------------------------------------
 // CCI Parser
 // ---------------------------------------------------------------------------
@@ -104,6 +125,13 @@ export function parseCciFile(filePath: string): Map<string, Partial<SchoolQualit
     const cci = parseNum(row["currstatus"]);
     const cciApproaching = parseNum(row["curr_aprep_pct"]);
     const cciNotPrepared = parseNum(row["curr_nprep_pct"]);
+    const cciPathwayAp = parseNum(row["curr_prep_ap_pct"]);
+    const cciPathwayIb = parseNum(row["curr_prep_ibexam_pct"]);
+    const cciPathwayCollegeCredit = parseNum(row["curr_prep_collegecredit_pct"]);
+    const cciPathwayAg = parseNum(row["curr_prep_agplus_pct"]);
+    const cciPathwayCte = parseNum(row["curr_prep_cteplus_pct"]);
+    const cciPathwayBiliteracy = parseNum(row["curr_prep_ssb_pct"]);
+    const cciPathwayMilitary = parseNum(row["curr_prep_milsci_pct"]);
 
     if (cci === undefined && cciApproaching === undefined && cciNotPrepared === undefined) continue;
 
@@ -111,6 +139,13 @@ export function parseCciFile(filePath: string): Map<string, Partial<SchoolQualit
     if (cci !== undefined) quality.cci = cci;
     if (cciApproaching !== undefined) quality.cciApproaching = cciApproaching;
     if (cciNotPrepared !== undefined) quality.cciNotPrepared = cciNotPrepared;
+    if (cciPathwayAp !== undefined) quality.cciPathwayAp = cciPathwayAp;
+    if (cciPathwayIb !== undefined) quality.cciPathwayIb = cciPathwayIb;
+    if (cciPathwayCollegeCredit !== undefined) quality.cciPathwayCollegeCredit = cciPathwayCollegeCredit;
+    if (cciPathwayAg !== undefined) quality.cciPathwayAg = cciPathwayAg;
+    if (cciPathwayCte !== undefined) quality.cciPathwayCte = cciPathwayCte;
+    if (cciPathwayBiliteracy !== undefined) quality.cciPathwayBiliteracy = cciPathwayBiliteracy;
+    if (cciPathwayMilitary !== undefined) quality.cciPathwayMilitary = cciPathwayMilitary;
 
     result.set(cds, quality);
   }
@@ -236,9 +271,13 @@ export function parseCgrFile(filePath: string): Map<string, Partial<SchoolQualit
     const cds = buildCds(row["CountyCode"], row["DistrictCode"], row["SchoolCode"]);
     if (cds.length !== 14) continue;
 
+    const completers = parseNum(row["High School Completers"]);
     const collegeGoingRate = parseNum(row["College Going Rate - Total (12 Months)"]);
     const collegeGoingUC = parseNum(row["Enrolled UC (12 Months)"]);
     const collegeGoingCSU = parseNum(row["Enrolled CSU (12 Months)"]);
+    const enrolledCCC = parseNum(row["Enrolled CCC (12 Months)"]);
+    const enrolledInStatePrivate = parseNum(row["Enrolled In-State Private (2 and 4 Year) (12 Months)"]);
+    const enrolledOutOfState = parseNum(row["Enrolled Out-of-State (12 Months)"]);
 
     if (collegeGoingRate === undefined && collegeGoingUC === undefined && collegeGoingCSU === undefined) continue;
 
@@ -246,6 +285,19 @@ export function parseCgrFile(filePath: string): Map<string, Partial<SchoolQualit
     if (collegeGoingRate !== undefined) quality.collegeGoingRate = collegeGoingRate;
     if (collegeGoingUC !== undefined) quality.collegeGoingUC = collegeGoingUC;
     if (collegeGoingCSU !== undefined) quality.collegeGoingCSU = collegeGoingCSU;
+
+    // Compute rates for institution breakdowns using completers as denominator
+    if (completers !== undefined && completers > 0) {
+      if (enrolledCCC !== undefined) {
+        quality.collegeGoingCCC = Math.round((enrolledCCC / completers) * 1000) / 10;
+      }
+      if (enrolledInStatePrivate !== undefined) {
+        quality.collegeGoingInStatePrivate = Math.round((enrolledInStatePrivate / completers) * 1000) / 10;
+      }
+      if (enrolledOutOfState !== undefined) {
+        quality.collegeGoingOutOfState = Math.round((enrolledOutOfState / completers) * 1000) / 10;
+      }
+    }
 
     result.set(cds, quality);
   }
@@ -314,6 +366,76 @@ export function parseSuspensionFile(filePath: string): Map<string, Partial<Schoo
 }
 
 // ---------------------------------------------------------------------------
+// FRPM Parser
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the FRPM (Free or Reduced-Price Meals) XLSX file.
+ *
+ * The file has a title row on the 'FRPM School-Level Data' sheet, with actual
+ * column headers on row 2. Column names contain \r\n characters.
+ *
+ * Key columns: County Code, District Code, School Code,
+ *   Percent (%) Eligible FRPM (K-12) — stored as decimal (0–1)
+ */
+export async function parseFrpmFile(filePath: string): Promise<Map<string, Partial<SchoolQuality>>> {
+  const result = new Map<string, Partial<SchoolQuality>>();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const XLSX = await import("xlsx") as any;
+  const readFile = XLSX.readFile ?? XLSX.default?.readFile;
+  const sheetToJson = XLSX.utils?.sheet_to_json ?? XLSX.default?.utils?.sheet_to_json;
+
+  if (!readFile || !sheetToJson) {
+    throw new Error("Failed to load xlsx library");
+  }
+
+  const workbook = readFile(filePath);
+
+  // Find the school-level data sheet
+  const sheetName = workbook.SheetNames.find(
+    (n: string) => n.toLowerCase().includes("school") && n.toLowerCase().includes("data"),
+  ) ?? workbook.SheetNames[1];
+  if (!sheetName) {
+    throw new Error(`No school-level data sheet found in ${path.basename(filePath)}`);
+  }
+
+  const sheet = workbook.Sheets[sheetName]!;
+  // range: 1 skips the title row so row 2 becomes the header
+  const rows = sheetToJson(sheet, { range: 1 }) as Record<string, unknown>[];
+
+  for (const row of rows) {
+    // Build a normalized lookup for column access
+    const normalizedRow = new Map<string, unknown>();
+    for (const [key, val] of Object.entries(row)) {
+      normalizedRow.set(normalizeColName(key), val);
+    }
+
+    const countyCode = String(normalizedRow.get("county code") ?? "").trim().padStart(2, "0");
+    const districtCode = String(normalizedRow.get("district code") ?? "").trim().padStart(5, "0");
+    const schoolCode = String(normalizedRow.get("school code") ?? "").trim().padStart(7, "0");
+    const cds = countyCode + districtCode + schoolCode;
+    if (cds.length !== 14 || cds === "00000000000000") continue;
+
+    // The percentage is stored as a decimal (0.739 = 73.9%)
+    const frpmPctRaw = normalizedRow.get("percent (%) eligible frpm (k-12)");
+    if (frpmPctRaw === undefined || frpmPctRaw === null || frpmPctRaw === "") continue;
+
+    const frpmDecimal = typeof frpmPctRaw === "number"
+      ? frpmPctRaw
+      : Number(String(frpmPctRaw));
+    if (!Number.isFinite(frpmDecimal)) continue;
+
+    // Convert decimal to percentage, round to 1 decimal place
+    const freeReducedMealPct = Math.round(frpmDecimal * 1000) / 10;
+
+    result.set(cds, { freeReducedMealPct });
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Merge
 // ---------------------------------------------------------------------------
 
@@ -347,7 +469,7 @@ export function mergeCdeQuality(
  * Each subdirectory may contain one or more .txt files; the most recently
  * modified one is used.
  */
-export function loadCdeQualityData(cdeDir: string): Map<string, SchoolQuality> {
+export async function loadCdeQualityData(cdeDir: string): Promise<Map<string, SchoolQuality>> {
   const maps: Map<string, Partial<SchoolQuality>>[] = [];
 
   const sources: {
@@ -381,6 +503,23 @@ export function loadCdeQualityData(cdeDir: string): Map<string, SchoolQuality> {
         `  CDE Quality: ${source.name} — error parsing ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  // FRPM (XLSX format — handled separately)
+  const frpmDir = path.join(cdeDir, "frpm");
+  const frpmFile = findMostRecentXlsx(frpmDir);
+  if (frpmFile) {
+    try {
+      const frpmMap = await parseFrpmFile(frpmFile);
+      console.log(`  CDE Quality: FRPM — ${frpmMap.size} schools from ${path.basename(frpmFile)}`);
+      maps.push(frpmMap);
+    } catch (err) {
+      console.warn(
+        `  CDE Quality: FRPM — error parsing ${frpmFile}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  } else {
+    console.log(`  CDE Quality: FRPM — no data file found in ${frpmDir}`);
   }
 
   return mergeCdeQuality(...maps);

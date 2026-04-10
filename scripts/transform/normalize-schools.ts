@@ -42,6 +42,10 @@ export interface CdeSchoolRecord {
   city: string;
   county: string;
   schoolType: "public" | "private";
+  /** 7-digit NCES district ID (from pubschls.txt) */
+  ncesDist?: string;
+  /** 5-digit NCES school ID (from pubschls.txt) */
+  ncesSchool?: string;
 }
 
 /** An enriched admission record after matching to CDE data */
@@ -257,16 +261,41 @@ export function parseCdeTxtFile(
 
     if (!name || name === "No Data") continue;
 
-    records.push({
+    const ncesDist = (row["NCESDist"] ?? row["ncesdist"] ?? "").trim();
+    const ncesSchool = (row["NCESSchool"] ?? row["ncesschool"] ?? "").trim();
+
+    const record: CdeSchoolRecord = {
       cdsCode,
       name,
       city,
       county,
       schoolType,
-    });
+    };
+    if (ncesDist && ncesDist !== "No Data") record.ncesDist = ncesDist;
+    if (ncesSchool && ncesSchool !== "No Data") record.ncesSchool = ncesSchool;
+
+    records.push(record);
   }
 
   return records;
+}
+
+/**
+ * Build an NCES-to-CDS crosswalk map from CDE school records.
+ *
+ * NCES IDs are formed by concatenating NCESDist (7 digits) + NCESSchool (5 digits)
+ * into a 12-digit NCES ID. Returns a Map<ncesId, cdsCode>.
+ */
+export function buildNcesCrosswalk(cdeRecords: CdeSchoolRecord[]): Map<string, string> {
+  const crosswalk = new Map<string, string>();
+  for (const rec of cdeRecords) {
+    if (!rec.ncesDist || !rec.ncesSchool) continue;
+    const ncesId = rec.ncesDist + rec.ncesSchool;
+    if (ncesId.length >= 10 && rec.cdsCode.length === 14) {
+      crosswalk.set(ncesId, rec.cdsCode);
+    }
+  }
+  return crosswalk;
 }
 
 /**

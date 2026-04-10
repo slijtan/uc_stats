@@ -126,6 +126,8 @@ export default function SchoolDetailPage() {
       { key: "collegeGoingRate", get: (s) => s.quality?.collegeGoingRate },
       { key: "chronicAbsentRate", get: (s) => s.quality?.chronicAbsentRate, reverse: true },
       { key: "suspensionRate", get: (s) => s.quality?.suspensionRate, reverse: true },
+      { key: "freeReducedMealPct", get: (s) => s.quality?.freeReducedMealPct },
+      { key: "apCoursesOffered", get: (s) => s.quality?.apCoursesOffered },
     ];
 
     const result = new Map<MetricKey, number>();
@@ -877,6 +879,7 @@ export default function SchoolDetailPage() {
       <section className="section" aria-label="School quality metrics">
         <h2 className="section-title">School Quality Metrics</h2>
         {school.quality ? (
+          <>
           <div className="quality-grid">
             {(
               [
@@ -888,6 +891,8 @@ export default function SchoolDetailPage() {
                 { key: "collegeGoingRate" as MetricKey, label: "College-Going Rate", value: school.quality.collegeGoingRate, fmt: (v: number) => `${v.toFixed(1)}%` },
                 { key: "chronicAbsentRate" as MetricKey, label: "Chronic Absenteeism", value: school.quality.chronicAbsentRate, fmt: (v: number) => `${v.toFixed(1)}%` },
                 { key: "suspensionRate" as MetricKey, label: "Suspension Rate", value: school.quality.suspensionRate, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "freeReducedMealPct" as MetricKey, label: "Free/Reduced Meals", value: school.quality.freeReducedMealPct, fmt: (v: number) => `${v.toFixed(1)}%` },
+                { key: "apCoursesOffered" as MetricKey, label: "AP Courses Offered", value: school.quality.apCoursesOffered, fmt: (v: number) => String(v) },
               ] as const
             )
               .filter((m) => m.value != null)
@@ -915,6 +920,76 @@ export default function SchoolDetailPage() {
                 );
               })}
           </div>
+
+          {/* CCI Pathway Breakdown */}
+          {(() => {
+            const pathways = [
+              { label: "A-G Completion", value: school.quality.cciPathwayAg },
+              { label: "AP Exams", value: school.quality.cciPathwayAp },
+              { label: "CTE Pathway", value: school.quality.cciPathwayCte },
+              { label: "Dual Enrollment", value: school.quality.cciPathwayCollegeCredit },
+              { label: "IB Exams", value: school.quality.cciPathwayIb },
+              { label: "Biliteracy Seal", value: school.quality.cciPathwayBiliteracy },
+              { label: "Military Science", value: school.quality.cciPathwayMilitary },
+            ].filter((p) => p.value != null && p.value > 0);
+            if (pathways.length === 0) return null;
+            const maxVal = Math.max(...pathways.map((p) => p.value!));
+            return (
+              <div className="quality-breakdown">
+                <h3 className="quality-breakdown-title">CCI Pathway Breakdown</h3>
+                <p className="quality-breakdown-subtitle">% of cohort qualifying via each pathway</p>
+                <div className="pathway-bars">
+                  {pathways.map((p) => (
+                    <div className="pathway-row" key={p.label}>
+                      <span className="pathway-label">{p.label}</span>
+                      <div className="pathway-bar-track">
+                        <div className="pathway-bar-fill" style={{ width: `${(p.value! / maxVal) * 100}%` }} />
+                      </div>
+                      <span className="pathway-value">{p.value!.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* College Destination Breakdown */}
+          {(() => {
+            const destinations = [
+              { label: "UC", value: school.quality.collegeGoingUC, color: "var(--color-uc)" },
+              { label: "CSU", value: school.quality.collegeGoingCSU, color: "var(--color-csu)" },
+              { label: "CCC", value: school.quality.collegeGoingCCC, color: "var(--color-ccc)" },
+              { label: "In-State Private", value: school.quality.collegeGoingInStatePrivate, color: "var(--color-dest-private)" },
+              { label: "Out-of-State", value: school.quality.collegeGoingOutOfState, color: "var(--color-oos)" },
+            ].filter((d) => d.value != null && d.value > 0);
+            if (destinations.length === 0) return null;
+            const total = destinations.reduce((sum, d) => sum + d.value!, 0);
+            return (
+              <div className="quality-breakdown">
+                <h3 className="quality-breakdown-title">College Destinations</h3>
+                <p className="quality-breakdown-subtitle">% of completers enrolling within 12 months</p>
+                <div className="dest-stacked-bar">
+                  {destinations.map((d) => (
+                    <div
+                      key={d.label}
+                      className="dest-segment"
+                      style={{ width: `${(d.value! / total) * 100}%`, backgroundColor: d.color }}
+                      title={`${d.label}: ${d.value!.toFixed(1)}%`}
+                    />
+                  ))}
+                </div>
+                <div className="dest-legend">
+                  {destinations.map((d) => (
+                    <span key={d.label} className="dest-legend-item">
+                      <span className="dest-legend-swatch" style={{ backgroundColor: d.color }} />
+                      {d.label} {d.value!.toFixed(1)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+          </>
         ) : (
           <p className="no-data-message">
             {school.type === "private"

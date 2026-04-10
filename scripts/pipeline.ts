@@ -32,11 +32,13 @@ import {
   parseHistoricalEnrollmentFile,
   parsePrivateSchoolEnrollmentFile,
   mergeEnrollmentMaps,
+  buildNcesCrosswalk,
 } from "./transform/normalize-schools.ts";
 import type { EnrollmentMap } from "./transform/normalize-schools.ts";
 import { computePipelineMetrics } from "./transform/compute-metrics.ts";
 import { generateJsonFiles } from "./transform/generate-json.ts";
-import { loadCdeQualityData } from "./extract/parse-cde-quality.ts";
+import { loadCdeQualityData, mergeCdeQuality } from "./extract/parse-cde-quality.ts";
+import { parseCrdcFile, findCrdcFile } from "./extract/parse-crdc.ts";
 import {
   generateDataQualityReport,
   writeReport,
@@ -195,12 +197,41 @@ export async function runPipeline(
 
   let qualityMap = new Map<string, import("../src/types/index.ts").SchoolQuality>();
   try {
-    qualityMap = loadCdeQualityData(cdeDir);
+    qualityMap = await loadCdeQualityData(cdeDir);
     console.log(`  Loaded quality data for ${qualityMap.size} schools`);
   } catch (err) {
     console.log(
       `  Warning: Could not load CDE quality data: ${err instanceof Error ? err.message : String(err)}. Proceeding without quality metrics.`,
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // Stage 2c: Load CRDC data (AP course access)
+  // -----------------------------------------------------------------------
+  console.log("\n=== Stage 2c: Loading CRDC data ===");
+
+  const crdcDir = path.join(inputDir, "crdc");
+  const crdcFile = findCrdcFile(crdcDir);
+  if (crdcFile) {
+    try {
+      // Build NCES-to-CDS crosswalk from CDE records
+      const ncesCrosswalk = buildNcesCrosswalk(cdeRecords);
+      console.log(`  NCES crosswalk: ${ncesCrosswalk.size} entries`);
+
+      const crdcMap = parseCrdcFile(crdcFile, ncesCrosswalk);
+      console.log(`  CRDC: ${crdcMap.size} schools with AP data from ${path.basename(crdcFile)}`);
+
+      // Merge CRDC data into quality map
+      if (crdcMap.size > 0) {
+        qualityMap = mergeCdeQuality(qualityMap, crdcMap);
+      }
+    } catch (err) {
+      console.log(
+        `  Warning: Could not load CRDC data: ${err instanceof Error ? err.message : String(err)}. Proceeding without AP course data.`,
+      );
+    }
+  } else {
+    console.log(`  CRDC: no preprocessed data file found in ${crdcDir}`);
   }
 
   // -----------------------------------------------------------------------
